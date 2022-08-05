@@ -16,6 +16,7 @@ project "Editor"
 
       "%{IncludeDir.VulkanSDK}",
       "%{IncludeDir.glm}",
+      "%{IncludeDir.spdlog}"
    }
 
     links
