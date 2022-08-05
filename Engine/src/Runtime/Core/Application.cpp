@@ -18,7 +18,7 @@
 #include <iostream>
 
 // Emedded font
-#include "Engine/ImGui/Roboto-Regular.embed"
+#include "Runtime/ImGui/Roboto-Regular.embed"
 
 extern bool g_ApplicationRunning;
 
@@ -381,16 +381,16 @@ static void glfw_error_callback(int error, const char* description)
 	fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
-namespace Engine {
+namespace engine {
 
-	Application* Application::s_Instance = nullptr;
+	Application* Application::app_instance_ = nullptr;
 
 	Application::Application(const ApplicationSpecification& specification)
-		: m_Specification(specification)
+		: app_specification_(specification)
 	{
-		//some assert(!s_Instance...) right here
-		s_Instance = this;
-		m_Window = std::make_unique<Window>(WindowProps(m_Specification.Name, m_Specification.Width, m_Specification.Height));
+		//some assert(!app_instance_...) right here
+		app_instance_ = this;
+		app_window_ = std::make_unique<Window>(WindowProps(app_specification_.name, app_specification_.width, app_specification_.height));
 		Init();
 	}
 
@@ -402,7 +402,7 @@ namespace Engine {
 	void Application::Init()
 	{
 		Application& app = Application::GetApp();
-		GLFWwindow* m_WindowHandle = static_cast<GLFWwindow*>(app.GetWindow().getNativeWindow());
+		GLFWwindow* glfw_window_handle = static_cast<GLFWwindow*>(app.GetWindow().GetNativeWindow());
 
 
 		// Setup Vulkan
@@ -417,12 +417,12 @@ namespace Engine {
 
 		// Create Window Surface
 		VkSurfaceKHR surface;
-		VkResult err = glfwCreateWindowSurface(g_Instance, m_WindowHandle, g_Allocator, &surface);
+		VkResult err = glfwCreateWindowSurface(g_Instance, glfw_window_handle, g_Allocator, &surface);
 		check_vk_result(err);
 
 		// Create Framebuffers
 		int w, h;
-		glfwGetFramebufferSize(m_WindowHandle, &w, &h);
+		glfwGetFramebufferSize(glfw_window_handle, &w, &h);
 		ImGui_ImplVulkanH_Window* wd = &g_MainWindowData;
 		SetupVulkanWindow(wd, surface, w, h);
 
@@ -453,7 +453,7 @@ namespace Engine {
 		}
 
 		// Setup Platform/Renderer backends
-		ImGui_ImplGlfw_InitForVulkan(m_WindowHandle, true);
+		ImGui_ImplGlfw_InitForVulkan(glfw_window_handle, true);
 		ImGui_ImplVulkan_InitInfo init_info = {};
 		init_info.Instance = g_Instance;
 		init_info.PhysicalDevice = g_PhysicalDevice;
@@ -509,10 +509,10 @@ namespace Engine {
 
 	void Application::Shutdown()
 	{
-		for (auto& layer : m_LayerStack)
+		for (auto& layer : layer_stack_)
 			layer->OnDetach();
 
-		m_LayerStack.clear();
+		layer_stack_.clear();
 
 		// Cleanup
 		VkResult err = vkDeviceWaitIdle(g_Device);
@@ -538,29 +538,29 @@ namespace Engine {
 
 	void Application::Run()
 	{
-		m_Running = true;
+		is_running_ = true;
 		Application& app = Application::GetApp();
-		GLFWwindow* m_WindowHandle = static_cast<GLFWwindow*>(app.GetWindow().getNativeWindow());
+		GLFWwindow* glfw_window_handle = static_cast<GLFWwindow*>(app.GetWindow().GetNativeWindow());
 
 		ImGui_ImplVulkanH_Window* wd = &g_MainWindowData;
 		ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 		ImGuiIO& io = ImGui::GetIO();
 
 		// Main loop
-		while (!glfwWindowShouldClose(m_WindowHandle) && m_Running)
+		while (!glfwWindowShouldClose(glfw_window_handle) && is_running_)
 		{
 			// Poll and handle events (inputs, window resize, etc.)
 			// You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
 			// - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
 			// - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
 			// Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-			m_Window.get()->OnUpdate();
+			app_window_.get()->OnUpdate();
 
 			// Resize swap chain?
 			if (g_SwapChainRebuild)
 			{
 				int width, height;
-				glfwGetFramebufferSize(m_WindowHandle, &width, &height);
+				glfwGetFramebufferSize(glfw_window_handle, &width, &height);
 				if (width > 0 && height > 0)
 				{
 					ImGui_ImplVulkan_SetMinImageCount(g_MinImageCount);
@@ -586,7 +586,7 @@ namespace Engine {
 				// We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
 				// because it would be confusing to have two docking targets within each others.
 				ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking;
-				if (m_MenubarCallback)
+				if (menu_bar_callback_)
 					window_flags |= ImGuiWindowFlags_MenuBar;
 
 				const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -622,16 +622,16 @@ namespace Engine {
 					ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
 				}
 
-				if (m_MenubarCallback)
+				if (menu_bar_callback_)
 				{
 					if (ImGui::BeginMenuBar())
 					{
-						m_MenubarCallback();
+						menu_bar_callback_();
 						ImGui::EndMenuBar();
 					}
 				}
 
-				for (auto& layer : m_LayerStack)
+				for (auto& layer : layer_stack_)
 					layer->OnUIRender();
 
 				ImGui::End();
@@ -664,7 +664,7 @@ namespace Engine {
 
 	void Application::Close()
 	{
-		m_Running = false;
+		is_running_ = false;
 	}
 
 	VkInstance Application::GetInstance()

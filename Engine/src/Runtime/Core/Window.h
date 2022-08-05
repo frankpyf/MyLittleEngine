@@ -1,17 +1,17 @@
 #pragma once
 struct GLFWwindow;
 
-namespace Engine {
+namespace engine {
 	struct WindowProps
 	{
-		std::string Title;
-		uint32_t Width;
-		uint32_t Height;
+		std::string title;
+		uint32_t width;
+		uint32_t height;
 
 		WindowProps(const std::string& title = "Hazel Engine",
 			uint32_t width = 1600,
 			uint32_t height = 900)
-			: Title(title), Width(width), Height(height)
+			: title(title), width(width), height(height)
 		{
 		}
 	};
@@ -26,19 +26,19 @@ namespace Engine {
 
 		void OnUpdate();
 
-		uint32_t getWidth() const	{ return m_Props.Width; };
-		uint32_t getHeight() const	{ return m_Props.Height; };
+		uint32_t GetWidth() const	{ return window_properties_.width; };
+		uint32_t GetHeight() const	{ return window_properties_.height; };
 
 		// Window attributes
 		/*virtual void seteventcallback(const eventcallbackfn& callback) = 0;
 		virtual void setvsync(bool enabled) = 0;
 		virtual bool isvsync() const = 0;*/
 
-		virtual void* getNativeWindow() const { return m_Window; };
+		virtual void* GetNativeWindow() const { return glfw_window_; };
 	private:
 		//data
-		GLFWwindow* m_Window;
-		WindowProps m_Props;
+		GLFWwindow* glfw_window_;
+		WindowProps window_properties_;
 		//function
 		void Init(const WindowProps& props);
 		void Shutdown();

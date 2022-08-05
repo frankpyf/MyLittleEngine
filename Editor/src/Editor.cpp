@@ -1,10 +1,10 @@
 #include "mlepch.h"
-#include <Engine/Core/Application.h>
-#include <Engine/Core/EntryPoint.h>
+#include <Runtime/Core/Application.h>
+#include <Runtime/Core/EntryPoint.h>
 
-#include "Engine/Image.h"
+#include "Runtime/Image.h"
 
-class ExampleLayer : public Engine::Layer
+class ExampleLayer : public engine::Layer
 {
 public:
 	virtual void OnUIRender() override
@@ -17,12 +17,12 @@ public:
 	}
 };
 
-Engine::Application* Engine::CreateApplication(int argc, char** argv)
+engine::Application* engine::CreateApplication(int argc, char** argv)
 {
-	Engine::ApplicationSpecification spec;
-	spec.Name = "Editor";
+	engine::ApplicationSpecification spec;
+	spec.name = "Editor";
 
-	Engine::Application* app = new Engine::Application(spec);
+	engine::Application* app = new engine::Application(spec);
 	app->PushLayer<ExampleLayer>();
 	app->SetMenubarCallback([app]()
 	{

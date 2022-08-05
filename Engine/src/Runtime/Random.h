@@ -4,7 +4,7 @@
 
 #include <glm/glm.hpp>
 
-namespace Engine {
+namespace engine {
 
 	class Random
 	{

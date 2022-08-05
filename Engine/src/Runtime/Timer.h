@@ -4,7 +4,7 @@
 #include <string>
 #include <chrono>
 
-namespace Engine {
+namespace engine {
 
 	class Timer
 	{

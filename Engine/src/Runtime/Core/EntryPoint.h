@@ -2,16 +2,16 @@
 
 #ifdef MLE_PLATFORM_WINDOWS
 
-extern Engine::Application* Engine::CreateApplication(int argc, char** argv);
+extern engine::Application* engine::CreateApplication(int argc, char** argv);
 bool g_ApplicationRunning = true;
 
-namespace Engine {
+namespace engine {
 
 	int Main(int argc, char** argv)
 	{
 		while (g_ApplicationRunning)
 		{
-			Engine::Application* app = Engine::CreateApplication(argc, argv);
+			engine::Application* app = engine::CreateApplication(argc, argv);
 			app->Run();
 			delete app;
 		}
@@ -27,14 +27,14 @@ namespace Engine {
 
 int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow)
 {
-	return Engine::Main(__argc, __argv);
+	return engine::Main(__argc, __argv);
 }
 
 #else
 
 int main(int argc, char** argv)
 {
-	return Engine::Main(argc, argv);
+	return engine::Main(argc, argv);
 }
 
 #endif // MLE_DIST

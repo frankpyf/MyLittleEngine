@@ -20,7 +20,7 @@ project "Editor"
 
     links
     {
-        "Engine"
+        "Runtime"
     }
 
    targetdir ("../bin/" .. outputdir .. "/%{prj.name}")

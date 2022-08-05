@@ -3,7 +3,7 @@
 #include "Window.h"
 #include <GLFW/glfw3.h>
 
-namespace Engine {
+namespace engine {
 	static void GLFWErrorCallback(int error, const char* description)
 	{
 		//MLE_CORE_ERROR("GLFW Error ({0}): {1}", error, description);
@@ -11,7 +11,7 @@ namespace Engine {
 	}
 
 	Window::Window(const WindowProps& props)
-		:m_Props(props)
+		:window_properties_(props)
 	{
 		Init(props);
 	}
@@ -24,7 +24,7 @@ namespace Engine {
 			return;
 
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		m_Window = glfwCreateWindow(props.Width, props.Height, props.Title.c_str(), NULL, NULL);
+		glfw_window_ = glfwCreateWindow(props.width, props.height, props.title.c_str(), NULL, NULL);
 	}
 
 	void Window::OnUpdate()
@@ -40,7 +40,7 @@ namespace Engine {
 	void Window::Shutdown()
 	{
 		//MLE_CORE_INFO("Engine is shutting down")
-		glfwDestroyWindow(m_Window);
+		glfwDestroyWindow(glfw_window_);
 		glfwTerminate();
 	}
 }

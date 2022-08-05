@@ -4,7 +4,7 @@
 
 #include "vulkan/vulkan.h"
 
-namespace Engine {
+namespace engine {
 
 	enum class ImageFormat
 	{
