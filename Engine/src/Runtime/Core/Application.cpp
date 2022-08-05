@@ -125,7 +125,7 @@ static void SetupVulkan(const char** extensions, uint32_t extensions_count)
 	// Select GPU
 	{
 		uint32_t gpu_count;
-		err = vkEnumeratePhysicalDevices(g_Instance, &gpu_count, NULL);
+		err = vkEnumeratePhysicalDevices(g_Instance, &gpu_count, nullptr);
 		check_vk_result(err);
 		IM_ASSERT(gpu_count > 0);
 

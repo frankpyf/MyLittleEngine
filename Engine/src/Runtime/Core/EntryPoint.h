@@ -1,5 +1,6 @@
 #pragma once
-
+#include "Runtime/Core/Application.h"
+#include "Runtime/Core/Log.h"
 #ifdef MLE_PLATFORM_WINDOWS
 
 extern engine::Application* engine::CreateApplication(int argc, char** argv);
@@ -11,6 +12,8 @@ namespace engine {
 	{
 		while (g_ApplicationRunning)
 		{
+			engine::Log::Init();
+			MLE_CORE_INFO("Engine running");
 			engine::Application* app = engine::CreateApplication(argc, argv);
 			app->Run();
 			delete app;
