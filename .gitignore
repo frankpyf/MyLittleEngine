@@ -1,7 +1,9 @@
 # Directories
 .vs/
+.vscode/
 bin/
 bin-int/
+Note/
 
 # Files
 *.vcxproj
