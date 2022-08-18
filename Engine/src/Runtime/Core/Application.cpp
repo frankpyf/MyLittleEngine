@@ -1,11 +1,12 @@
 #include "mlepch.h"
 
 #include "Application.h"
+#include "Log.h"
+#include "Runtime/Events/EventBus.h"
 
-//
+// **************************************
 // Adapted from Dear ImGui Vulkan example
-//
-
+// **************************************
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_vulkan.h"
 #include <stdio.h>          // printf, fprintf
@@ -15,7 +16,6 @@
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
 
-#include <iostream>
 
 // Emedded font
 #include "Runtime/ImGui/Roboto-Regular.embed"
@@ -155,7 +155,7 @@ static void SetupVulkan(const char** extensions, uint32_t extensions_count)
 	// Select graphics queue family
 	{
 		uint32_t count;
-		vkGetPhysicalDeviceQueueFamilyProperties(g_PhysicalDevice, &count, NULL);
+		vkGetPhysicalDeviceQueueFamilyProperties(g_PhysicalDevice, &count, nullptr);
 		VkQueueFamilyProperties* queues = (VkQueueFamilyProperties*)malloc(sizeof(VkQueueFamilyProperties) * count);
 		vkGetPhysicalDeviceQueueFamilyProperties(g_PhysicalDevice, &count, queues);
 		for (uint32_t i = 0; i < count; i++)
@@ -376,11 +376,6 @@ static void FramePresent(ImGui_ImplVulkanH_Window* wd)
 	wd->SemaphoreIndex = (wd->SemaphoreIndex + 1) % wd->ImageCount; // Now we can use the next set of semaphores
 }
 
-static void glfw_error_callback(int error, const char* description)
-{
-	fprintf(stderr, "Glfw Error %d: %s\n", error, description);
-}
-
 namespace engine {
 
 	Application* Application::app_instance_ = nullptr;
@@ -391,6 +386,7 @@ namespace engine {
 		//some assert(!app_instance_...) right here
 		app_instance_ = this;
 		app_window_ = std::make_unique<Window>(WindowProps(app_specification_.name, app_specification_.width, app_specification_.height));
+		app_window_->SetEventCallback(std::bind(&Application::OnEvent, this, std::placeholders::_1));
 		Init();
 	}
 
@@ -408,7 +404,7 @@ namespace engine {
 		// Setup Vulkan
 		if (!glfwVulkanSupported())
 		{
-			std::cerr << "GLFW: Vulkan not supported!\n";
+			MLE_CORE_ERROR("GLFW: Vulkan not supported!\n");
 			return;
 		}
 		uint32_t extensions_count = 0;
@@ -505,6 +501,15 @@ namespace engine {
 			check_vk_result(err);
 			ImGui_ImplVulkan_DestroyFontUploadObjects();
 		}
+	}
+
+	void Application::OnEvent(Event& event)
+	{
+#ifdef MLE_DEBUG
+		MLE_CORE_INFO("Dispatching");
+#endif // MLE_DEBUG
+		EventBus& bus = EventBus::GetInstance();
+		bus.Dispatch(event);
 	}
 
 	void Application::Shutdown()
@@ -665,6 +670,7 @@ namespace engine {
 	void Application::Close()
 	{
 		is_running_ = false;
+		MLE_INFO("Application closed");
 	}
 
 	VkInstance Application::GetInstance()

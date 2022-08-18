@@ -28,6 +28,10 @@ engine::Application* engine::CreateApplication(int argc, char** argv)
 	{
 		if (ImGui::BeginMenu("File"))
 		{
+			if (ImGui::MenuItem("Open File"))
+			{
+				//*****open file callback here********
+			}
 			if (ImGui::MenuItem("Exit"))
 			{
 				app->Close();
