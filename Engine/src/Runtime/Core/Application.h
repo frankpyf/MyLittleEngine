@@ -2,9 +2,11 @@
 
 #include "Runtime/Core/Layer.h"
 #include "Runtime/Core/Window.h"
+#include "Runtime/Events/Event.h"
 
 #include "imgui.h"
 #include "vulkan/vulkan.h"
+
 
 void check_vk_result(VkResult err);
 
@@ -25,6 +27,8 @@ namespace engine {
 		Application(const ApplicationSpecification& applicationSpecification = ApplicationSpecification());
 		~Application();
 
+		void OnEvent(Event& event);
+
 		void Run();
 		void SetMenubarCallback(const std::function<void()>& menubarCallback) { menu_bar_callback_ = menubarCallback; }
 
@@ -41,7 +45,6 @@ namespace engine {
 
 		static Application& GetApp() { return *app_instance_; }
 		Window& GetWindow() { return*app_window_; }
-
 
 		static VkInstance GetInstance();
 		static VkPhysicalDevice GetPhysicalDevice();

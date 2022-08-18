@@ -1,14 +1,17 @@
 #pragma once
+#include "Runtime/Events/Event.h"
 struct GLFWwindow;
 
 namespace engine {
+
 	struct WindowProps
 	{
 		std::string title;
 		uint32_t width;
 		uint32_t height;
+		std::function<void(Event&)> EventCallback;
 
-		WindowProps(const std::string& title = "Hazel Engine",
+		WindowProps(const std::string& title = "My Little Engine",
 			uint32_t width = 1600,
 			uint32_t height = 900)
 			: title(title), width(width), height(height)
@@ -30,8 +33,8 @@ namespace engine {
 		uint32_t GetHeight() const	{ return window_properties_.height; };
 
 		// Window attributes
-		/*virtual void seteventcallback(const eventcallbackfn& callback) = 0;
-		virtual void setvsync(bool enabled) = 0;
+		void SetEventCallback(const std::function<void(Event&)>& callback) { window_properties_.EventCallback = callback; };
+		/*virtual void setvsync(bool enabled) = 0;
 		virtual bool isvsync() const = 0;*/
 
 		virtual void* GetNativeWindow() const { return glfw_window_; };

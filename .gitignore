@@ -3,7 +3,6 @@
 .vscode/
 bin/
 bin-int/
-Note/
 
 # Files
 *.vcxproj
