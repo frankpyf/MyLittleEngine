@@ -2,10 +2,12 @@
 #pragma once
 
 #include <iostream>
+#include <fstream>
 #include <memory>
 #include <utility>
 #include <algorithm>
 #include <functional>
+#include <assert.h>
 
 #include <string>
 #include <sstream>

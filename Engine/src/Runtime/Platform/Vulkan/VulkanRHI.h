@@ -1,22 +1,39 @@
 #pragma once
-#include "Runtime/Function/RendererAPI.h"
+#include "Runtime/Function/RHI.h"
 #include <vulkan/vulkan.h>
 
 namespace engine {
-    class VulkanRHI : public RendererAPI {
+    class VulkanPipeline;
+    class VulkanDevice;
+    class VulkanViewport;
+
+    class VulkanRHI : public RHI {
     public:
+        VulkanRHI();
         virtual void Init() override;
         virtual void Shutdown() override;
+
+        void RHITick(float delta_time) override;
+        void RHIBlockUntilGPUIdle() override;
+
+        void GetExtensionsAndLayers();
+
+        inline VkInstance GetInstance() const { return instance_; };
+        inline VulkanDevice* GetDevice() { return device_; };
+        inline VulkanViewport* GetViewport() { return viewport_; };
     private:
-        void Setup(const char** extensions, uint32_t extensions_count);
-        void CreateInstance(const char** extensions, uint32_t extensions_count);
-        void PickPhysicalDevice();
-        void CreateLogicalDevice();
-    private:
-        VkInstance       instance_;
-        VkPhysicalDevice physical_device_;
-        VkDevice         device_;
-        VkQueue          graphics_queue_;
-        VkAllocationCallbacks* allocator_;
+        
+        
+    protected:
+        VkInstance instance_;
+        std::vector<const char*> instance_extensions_;
+        std::vector<const char*> instance_layers_;
+
+        VulkanDevice* device_;
+
+        VulkanViewport* viewport_;
+
+        void CreateInstance();
+        void SelectAndInitDevice();
     };
 }

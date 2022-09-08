@@ -2,143 +2,227 @@
 #include "VulkanRHI.h"
 #include <vector>
 #include <GLFW/glfw3.h>
-#include "Runtime/Core/Log.h"
-//#define IMGUI_UNLIMITED_FRAME_RATE
-#ifdef _DEBUG
-#define IMGUI_VULKAN_DEBUG_REPORT
-#endif
-void check_vk_result(VkResult err)
+#include "Runtime/Core/Base/Log.h"
+#include "Runtime/Core/Base/Application.h"
+
+#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_vulkan.h"
+
+#include "VulkanDevice.h"
+
+#ifdef MLE_DEBUG
+static VKAPI_ATTR VkBool32 VKAPI_CALL debug_report(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData)
 {
-	if (err == 0)
-		return;
-	MLE_CORE_ERROR("[vulkan] Error: VkResult = {0}\n",err);
-	// fprintf(stderr, "[vulkan] Error: VkResult = %d\n", err);
-	if (err < 0)
-		abort();
+	(void)flags; (void)object; (void)location; (void)messageCode; (void)pUserData; (void)pLayerPrefix; // Unused arguments
+	fprintf(stderr, "[vulkan] Debug report from ObjectType: %i\nMessage: %s\n\n", objectType, pMessage);
+	return VK_FALSE;
 }
+#endif // MLE_DEBUG
+static VkDebugReportCallbackEXT g_DebugReport = VK_NULL_HANDLE;
+
 
 namespace engine {
+	VulkanRHI::VulkanRHI()
+		:instance_(VK_NULL_HANDLE),
+		device_(nullptr),
+		viewport_(nullptr)
+	{
+	}
+
 	void VulkanRHI::Init()
 	{
 		//**********************************************
-		//modify pAllocator, Instance extensions etc here
+		//modify Instance extensions etc here
 		//**********************************************
-		allocator_ = nullptr;
-		uint32_t extensions_count = 0;
-		const char** extensions = glfwGetRequiredInstanceExtensions(&extensions_count);
+		/*uint32_t extensions_count = 0;
+		const char** extensions = glfwGetRequiredInstanceExtensions(&extensions_count);*/
 
-		Setup(extensions, extensions_count);
-	}
-
-	void VulkanRHI::Setup(const char** extensions, uint32_t extensions_count)
-	{
-		CreateInstance(extensions, extensions_count);
-		PickPhysicalDevice();
-		CreateLogicalDevice();
-	}
-
-    void VulkanRHI::CreateInstance(const char** extensions, uint32_t extensions_count)
-    {
-		VkResult result;
-        VkInstanceCreateInfo create_info{};
-        create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-		create_info.enabledExtensionCount = extensions_count;
-		create_info.ppEnabledExtensionNames = extensions;
-#ifdef IMGUI_VULKAN_DEBUG_REPORT
-		// Enabling validation layers
-		const char* layers[] = { "VK_LAYER_KHRONOS_validation" };
-		create_info.enabledLayerCount = 1;
-		create_info.ppEnabledLayerNames = layers;
-
-		// Enable debug report extension (we need additional storage, so we duplicate the user array to add our new extension to it)
-		const char** extensions_ext = (const char**)malloc(sizeof(const char*) * (extensions_count + 1));
-		memcpy(extensions_ext, extensions, extensions_count * sizeof(const char*));
-		extensions_ext[extensions_count] = "VK_EXT_debug_report";
-		create_info.enabledExtensionCount = extensions_count + 1;
-		create_info.ppEnabledExtensionNames = extensions_ext;
-
-		// Create Vulkan Instance
-		result = vkCreateInstance(&create_info, allocator_, &instance_);
-        check_vk_result(result);
-#else
-		// Create Vulkan Instance without any debug feature
-		err = vkCreateInstance(&create_info, g_Allocator, &g_Instance);
-		check_vk_result(err);
-		IM_UNUSED(g_DebugReport);
-#endif
-    }
-
-	void VulkanRHI::PickPhysicalDevice()
-	{
-		uint32_t gpu_count;
-		VkResult result;
-		result = vkEnumeratePhysicalDevices(instance_, &gpu_count, nullptr);
-		check_vk_result(result);
-		// IM_ASSERT(gpu_count > 0);
-
-		std::vector<VkPhysicalDevice> gpus(gpu_count);
-		result = vkEnumeratePhysicalDevices(instance_, &gpu_count, gpus.data());
-		check_vk_result(result);
-		VkPhysicalDeviceProperties properties;
-		VkPhysicalDeviceFeatures features;
-		for(auto gpu : gpus)
+		// Setup Vulkan
+		if (!glfwVulkanSupported())
 		{
-			vkGetPhysicalDeviceFeatures(gpu, &features);
-			vkGetPhysicalDeviceProperties(gpu, &properties);
-			if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && 
-				features.geometryShader)
-			{
-				physical_device_ = gpu;
-				break;
-			}
+			MLE_CORE_ERROR("GLFW: Vulkan not supported!\n");
+			return;
+		}
+
+		if (!device_)
+		{
+			CreateInstance();
+			SelectAndInitDevice();
 		}
 	}
 
-	void VulkanRHI::CreateLogicalDevice()
-	{
-		VkResult result;
-		//device related
-		int device_extension_count = 1;
-		const char* device_extensions[] = { "VK_KHR_swapchain" };
-		//queue related
-		uint32_t queue_family_index;
-		VkDeviceQueueCreateInfo queue_create_info[1] = {};
-		const float queue_priority[] = { 1.0f };
-		//create device queue family
-		{
-			uint32_t count;
-			vkGetPhysicalDeviceQueueFamilyProperties(physical_device_, &count, nullptr);
-			VkQueueFamilyProperties* queues = (VkQueueFamilyProperties*)malloc(sizeof(VkQueueFamilyProperties) * count);
-			vkGetPhysicalDeviceQueueFamilyProperties(physical_device_, &count, queues);
-			for(uint32_t i = 0; i < count; i++)
-			{
-				if (queues[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-				{
-					queue_family_index = i;
-					break;
-				}
-			}
-			free(queues);
-
-			queue_create_info[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-			queue_create_info[0].queueFamilyIndex = queue_family_index;
-			queue_create_info[0].queueCount = 1;
-			queue_create_info[0].pQueuePriorities = queue_priority;
-		}
-		//create device
-		VkDeviceCreateInfo create_info{};
-		create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-		create_info.queueCreateInfoCount = sizeof(queue_create_info) / sizeof(queue_create_info[0]);
-		create_info.pQueueCreateInfos = queue_create_info;
-		create_info.enabledExtensionCount = device_extension_count;
-		create_info.ppEnabledExtensionNames = device_extensions;
-		result = vkCreateDevice(physical_device_, &create_info, allocator_, &device_);
-		check_vk_result(result);
-		vkGetDeviceQueue(device_, queue_family_index, 0, &graphics_queue_);
-	}
 
 	void VulkanRHI::Shutdown()
 	{
+#ifdef MLE_DEBUG
+		// Remove the debug report callback
+		auto vkDestroyDebugReportCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(instance_, "vkDestroyDebugReportCallbackEXT");
+		vkDestroyDebugReportCallbackEXT(instance_, g_DebugReport, nullptr);
+#endif // MLE_DEBUG
 
+		
+		device_->Destroy();
+		delete device_;
+
+		vkDestroyInstance(instance_, nullptr);
+	}
+
+	void VulkanRHI::GetExtensionsAndLayers()
+	{
+		uint32_t extensions_count = 0;
+		const char** extensions = glfwGetRequiredInstanceExtensions(&extensions_count);
+		for (uint32_t i = 0; i < extensions_count; ++i)
+		{
+			instance_extensions_.emplace_back(extensions[i]);
+		}
+#ifdef MLE_DEBUG
+		instance_extensions_.emplace_back("VK_EXT_debug_report");
+#endif // MLE_DEBUG
+
+		instance_layers_.emplace_back("VK_LAYER_KHRONOS_validation");
+	}
+
+    void VulkanRHI::CreateInstance()
+    {
+        VkInstanceCreateInfo create_info{};
+        create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+
+		GetExtensionsAndLayers();
+
+		create_info.enabledExtensionCount = static_cast<uint32_t>(instance_extensions_.size());
+		create_info.ppEnabledExtensionNames = create_info.enabledExtensionCount > 0 ?
+											  instance_extensions_.data() : nullptr;
+
+		// Enabling validation layers
+		create_info.enabledLayerCount = static_cast<uint32_t>(instance_layers_.size());
+		create_info.ppEnabledLayerNames = create_info.enabledLayerCount > 0 ?
+										  instance_layers_.data() : nullptr;
+
+		// Create Vulkan Instance
+		VkResult result = vkCreateInstance(&create_info, nullptr, &instance_);
+		if (result == VK_ERROR_INCOMPATIBLE_DRIVER)
+		{
+			MLE_CORE_ERROR("Cannot find a compatible Vulkan driver (ICD)");
+			abort();
+		}
+		else if (result == VK_ERROR_EXTENSION_NOT_PRESENT)
+		{
+			// Check for missing extensions
+			std::string missing_extensions;
+
+			uint32_t property_count;
+			vkEnumerateInstanceExtensionProperties(nullptr, &property_count, nullptr);
+
+			std::vector<VkExtensionProperties> properties(property_count);
+			vkEnumerateInstanceExtensionProperties(nullptr, &property_count, properties.data());
+
+			for (const char* extension : instance_extensions_)
+			{
+				bool extension_found = false;
+				for (uint32_t property_index = 0; property_index < property_count; ++property_count)
+				{
+					const char* property_extension_name = properties[property_index].extensionName;
+					if (!strcmp(property_extension_name, extension))
+					{
+						extension_found = true;
+						break;
+					}
+				}
+				
+				if (!extension_found)
+				{
+					std::string extension_str(extension);
+					MLE_CORE_ERROR("Missing required Vulkan extension: {0}", extension_str);
+					missing_extensions += extension + '\n';
+				}
+
+				MLE_CORE_ERROR("Vulkan driver doesn't contain specified extensions: {0}", missing_extensions);
+				abort();
+			}
+		}
+		else if (result != VK_SUCCESS)
+		{
+			MLE_CORE_ERROR("failed to create instance");
+			abort();
+		}
+
+		// Get the function pointer (required for any extensions)
+		auto vkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(instance_, "vkCreateDebugReportCallbackEXT");
+		IM_ASSERT(vkCreateDebugReportCallbackEXT != NULL);
+
+#ifdef MLE_DEBUG
+		// Setup the debug report callback
+		VkDebugReportCallbackCreateInfoEXT debug_report_ci = {};
+		debug_report_ci.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
+		debug_report_ci.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT;
+		debug_report_ci.pfnCallback = debug_report;
+		debug_report_ci.pUserData = NULL;
+		result = vkCreateDebugReportCallbackEXT(instance_, &debug_report_ci, nullptr, &g_DebugReport);
+		if (result != VK_SUCCESS) 
+		{
+			MLE_CORE_ERROR("Failed to create debug report");
+			abort();
+		}
+#endif // MLE_DEBUG
+    }
+
+	void VulkanRHI::SelectAndInitDevice()
+	{
+		uint32_t gpu_count = 0;
+		VkResult result = vkEnumeratePhysicalDevices(instance_, &gpu_count, nullptr);
+		check_vk_result(result);
+		assert(gpu_count > 0, "No GPU that support Vulkan is found!");
+
+		VkPhysicalDevice* gpus = (VkPhysicalDevice*)malloc(sizeof(VkPhysicalDevice) * gpu_count);
+		result = vkEnumeratePhysicalDevices(instance_, &gpu_count, gpus);
+		check_vk_result(result);
+
+		//struct DeviceInfo
+		//{
+		//	VulkanDevice* device;
+		//	uint32_t device_index;
+		//};
+		//std::vector<DeviceInfo> discrete_devices;
+		//std::vector<DeviceInfo> integrated_devices;
+
+		MLE_CORE_INFO("Found {0} device(s)", gpu_count);
+		//enumerate all physical device
+		for(int i = 0; i < (int)gpu_count; i++)
+		{
+			VulkanDevice* new_device = new VulkanDevice(this, gpus[i]);
+
+			bool is_discrete = new_device->QueryGPU();
+
+			if (is_discrete)
+			{
+				//discrete_devices.emplace_back(new_device, i);
+				device_ = new_device;
+				break;
+			}
+			/*else
+			{
+
+				integrated_devices.emplace_back(new_device, i);
+			}*/
+			delete new_device;
+		}
+		free(gpus);
+
+		//Pick the first discrete device
+		//device_ = discrete_devices[0].device;
+
+		assert(device_ != nullptr, "No proper device found!");
+
+		device_->InitGPU();
+	}
+
+	void VulkanRHI::RHITick(float delta_time)
+	{
+
+	}
+
+	void VulkanRHI::RHIBlockUntilGPUIdle()
+	{
+		vkDeviceWaitIdle(device_->GetDeviceHandle());
 	}
 }

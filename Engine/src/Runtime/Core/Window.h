@@ -29,15 +29,11 @@ namespace engine {
 
 		void OnUpdate();
 
-		uint32_t GetWidth() const	{ return window_properties_.width; };
-		uint32_t GetHeight() const	{ return window_properties_.height; };
+		uint32_t		GetWidth()			const	{ return window_properties_.width; };
+		uint32_t		GetHeight()			const	{ return window_properties_.height; };
+		virtual void*	GetNativeWindow()	const	{ return glfw_window_; };
 
-		// Window attributes
 		void SetEventCallback(const std::function<void(Event&)>& callback) { window_properties_.EventCallback = callback; };
-		/*virtual void setvsync(bool enabled) = 0;
-		virtual bool isvsync() const = 0;*/
-
-		virtual void* GetNativeWindow() const { return glfw_window_; };
 	private:
 		//data
 		GLFWwindow* glfw_window_;

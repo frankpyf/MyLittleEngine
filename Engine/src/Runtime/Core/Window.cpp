@@ -3,7 +3,7 @@
 #include "Window.h"
 #include <GLFW/glfw3.h>
 
-#include "Runtime/Core/Log.h"
+#include "Runtime/Core/Base/Log.h"
 #include "Runtime/Events/ApplicationEvents.h"
 
 namespace engine {
@@ -40,7 +40,6 @@ namespace engine {
 
 				WindowResizeEvent event(width, height);
 				data.EventCallback(event);
-				MLE_INFO("window resize event: {0},{1}", width, height);
 			});
 
 		glfwSetKeyCallback(glfw_window_, [](GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -109,8 +108,8 @@ namespace engine {
 
 	void Window::Shutdown()
 	{
-		//MLE_CORE_INFO("Engine is shutting down")
 		glfwDestroyWindow(glfw_window_);
 		glfwTerminate();
 	}
+
 }

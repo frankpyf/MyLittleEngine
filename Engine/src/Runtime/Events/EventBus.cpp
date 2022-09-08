@@ -1,6 +1,7 @@
 #include "mlepch.h"
 
 #include "EventBus.h"
+#include "Runtime/Core/Base/Log.h"
 
 namespace engine {
 	EventBus* EventBus::instance_ = nullptr;
@@ -28,6 +29,7 @@ namespace engine {
 		while (subsriber != nullptr)
 		{
 			subsriber->OnEvent(event);
+			subsriber = subsriber->next_;
 		}
 	}
 
@@ -45,10 +47,11 @@ namespace engine {
 	void EventBus::Close()
 	{
 		System* subsriber = head_;
-		while (subsriber != nullptr)
+		while (head_ != nullptr)
 		{
-			head_ = subsriber->next_;
-			subsriber->next_ = nullptr;
+			subsriber = head_;
+			head_ = head_->next_;
+			subsriber->next_ = nullptr;	
 		}
 	}
 }
