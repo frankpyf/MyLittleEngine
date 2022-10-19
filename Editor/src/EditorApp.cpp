@@ -2,7 +2,7 @@
 #include <Runtime/Core/Base/Application.h>
 #include <Runtime/Core/Base/EntryPoint.h>
 
-#include "Runtime/Image.h"
+#include "EditorLayer.h"
 
 class ExampleLayer : public engine::Layer
 {
@@ -23,6 +23,7 @@ engine::Application* engine::CreateApplication(int argc, char** argv)
 	spec.name = "Editor";
 
 	engine::Application* app = new engine::Application(spec);
+	app->PushLayer<editor::EditorLayer>();
 	//app->PushLayer<ExampleLayer>();
 	//app->SetMenubarCallback([app]()
 	//{

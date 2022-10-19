@@ -13,8 +13,11 @@
 #include <sstream>
 #include <array>
 #include <vector>
+#include <queue>
 #include <unordered_map>
 #include <unordered_set>
+
+#include "Runtime/Core/Base/Log.h"
 
 #ifdef MLE_PLATFORM_WINDOWS
 	#include <Windows.h>

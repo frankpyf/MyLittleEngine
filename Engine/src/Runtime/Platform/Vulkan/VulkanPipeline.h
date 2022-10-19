@@ -1,17 +1,21 @@
 #pragma once
 #include <vulkan/vulkan.h>
-namespace engine {
+namespace rhi {
 	struct PipelineConfigInfo {
-		VkViewport viewport;
-		VkRect2D scissor;
-		VkPipelineInputAssemblyStateCreateInfo input_assembly_info;
-		VkPipelineRasterizationStateCreateInfo rasterization_info;
-		VkPipelineMultisampleStateCreateInfo multi_sample_info;
-		VkPipelineColorBlendAttachmentState color_blend_attachment;
-		VkPipelineColorBlendStateCreateInfo color_blend_info;
-		VkPipelineDepthStencilStateCreateInfo depth_stencil_info;
-		VkPipelineLayout pipeline_layout = nullptr;
-		VkRenderPass render_pass = nullptr;
+		PipelineConfigInfo(const PipelineConfigInfo&) = delete;
+		PipelineConfigInfo& operator=(const PipelineConfigInfo&) = delete;
+
+		VkPipelineViewportStateCreateInfo viewportInfo;
+		VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
+		VkPipelineRasterizationStateCreateInfo rasterizationInfo;
+		VkPipelineMultisampleStateCreateInfo multisampleInfo;
+		VkPipelineColorBlendAttachmentState colorBlendAttachment;
+		VkPipelineColorBlendStateCreateInfo colorBlendInfo;
+		VkPipelineDepthStencilStateCreateInfo depthStencilInfo;
+		std::vector<VkDynamicState> dynamicStateEnables;
+		VkPipelineDynamicStateCreateInfo dynamicStateInfo;
+		VkPipelineLayout pipelineLayout = nullptr;
+		VkRenderPass renderPass = nullptr;
 		uint32_t subpass = 0;
 	};
 
@@ -24,16 +28,15 @@ namespace engine {
 			const std::string frag_path,
 			const PipelineConfigInfo& config);
 		virtual ~VulkanPipeline();
+
+		void DestroyPipeline();
 		
 		VulkanPipeline(const VulkanPipeline&) = delete;
 		void operator = (const VulkanPipeline&) = delete;
 
-		static PipelineConfigInfo DefaultPipelineConfigInfo(uint32_t width, uint32_t height);
+		static void DefaultPipelineConfigInfo(PipelineConfigInfo& configInfo);
 
-		void Bind(VkCommandBuffer command_buffer)
-		{
-			vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_);
-		}
+		VkPipeline& GetPipeline() { return pipeline_; };
 	private:
 		std::vector<char> ReadFile(const std::string& filename);
 
@@ -49,6 +52,5 @@ namespace engine {
 		VkPipeline  pipeline_;
 		VkShaderModule vert_shader_module_;
 		VkShaderModule frag_shader_module_;
-		
 	};
 }

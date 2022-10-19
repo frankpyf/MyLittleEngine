@@ -1,8 +1,9 @@
 #pragma once
 #include <vulkan/vulkan.h>
 
-namespace engine {
+namespace rhi {
 	class VulkanDevice;
+	class VulkanFrameResource;
 
 	class VulkanQueue
 	{
@@ -12,6 +13,7 @@ namespace engine {
 		inline uint32_t GetFamilyIndex() const { return family_index_; };
 		inline VkQueue  GetQueueHandle() const { return queue_; };
 
+		void Submit(VulkanFrameResource& frame);
 	private:
 		VkQueue queue_;
 		uint32_t family_index_;

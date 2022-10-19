@@ -4,11 +4,12 @@
 #include "Runtime/Core/Window.h"
 #include "Runtime/Events/Event.h"
 #include "Runtime/Events/ApplicationEvents.h"
-#include "Runtime/Function/Ui/UiSystem.h"
 #include "Runtime/Function/Renderer/Renderer.h"
 
 #include "imgui.h"
 #include "vulkan/vulkan.h"
+
+#include <chrono>
 
 
 void check_vk_result(VkResult err);
@@ -48,6 +49,7 @@ namespace engine {
 
 		static Application& GetApp() { return *app_instance_; }
 		Window& GetWindow() { return*app_window_; }
+
 	private:
 		void Init();
 		void Shutdown();
@@ -63,8 +65,9 @@ namespace engine {
 		std::vector<std::shared_ptr<Layer>> layer_stack_;
 		std::function<void()> menu_bar_callback_;
 
-		Renderer* renderer_;
-		//UiSystem *ui_system_;
+		renderer::Renderer* renderer_;
+
+		std::chrono::steady_clock::time_point last_tick_time_point_{ std::chrono::steady_clock::now() };
 	};
 
 	// Implemented by CLIENT

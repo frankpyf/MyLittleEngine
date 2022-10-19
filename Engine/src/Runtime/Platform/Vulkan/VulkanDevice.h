@@ -1,12 +1,11 @@
 #pragma once
 #include <vulkan/vulkan.h>
+#include "VulkanQueue.h"
 
-namespace engine {
-	class VulkanQueue;
-
+namespace rhi {
 	class VulkanDevice
 	{
-	friend class VulkanRHI;
+		friend class VulkanRHI;
 	public:
 		
 		VulkanDevice(VulkanRHI* in_rhi, VkPhysicalDevice gpu);
@@ -22,39 +21,38 @@ namespace engine {
 		bool QueryGPU();
 		void InitGPU();
 		void CreateLogicalDevice();
+
 		void CreateCommandPool();
+		void CreateDescriptorPool();
+
+		VkCommandBuffer BeginSingleTimeCommands();
+		void			EndSingleTimeCommands(VkCommandBuffer command_buffer);
 
 		inline VkDevice			GetDeviceHandle()	const { return device_; };
 		inline VkPhysicalDevice GetPhysicalHandle() const { return gpu_; };
 		inline VulkanQueue*		GetGfxQueue()		{ return graphics_queue_; };
 		inline VulkanQueue*		GetComputeQueue()	{ return compute_queue_; };
 		inline VulkanQueue*		GetPresentQueue()	{ return present_queue_; };
-		inline VkCommandPool	GetCommandPool()	{ return command_pool_; }
+		inline VkCommandPool	GetCommandPool()	{ return command_pool_; };
+		inline VkDescriptorPool	GetDescriptorPool()	{ return descriptor_pool_; }
 
-		inline const VkPhysicalDeviceFeatures& const GetPhysicalFeatures() { return features_; };
-		inline const VkPhysicalDeviceProperties& const GetDeviceProperties() { return gpu_properties_; };
-
-		uint32_t FindMemoryType(uint32_t type_filter, VkMemoryPropertyFlags properties);
-		VkFormat FindSupportedFormat(
-			const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
-
-		void CreateImageWithInfo(
-			const VkImageCreateInfo& image_info,
-			VkMemoryPropertyFlags properties,
-			VkImage& image,
-			VkDeviceMemory& image_memory);
+		inline const VkPhysicalDeviceFeatures& GetPhysicalFeatures() { return features_; };
+		inline const VkPhysicalDeviceProperties& GetDeviceProperties() { return gpu_properties_; };
 
 		void SetupPresentQueue(VkSurfaceKHR in_surface);
 
 	private:
 		//Physical Device, aka gpu
 		VkPhysicalDevice gpu_;
-		VkPhysicalDeviceProperties gpu_properties_;
-		VkPhysicalDeviceFeatures features_;
+		VkPhysicalDeviceProperties gpu_properties_{};
+		VkPhysicalDeviceFeatures features_{};
 		// Logical Device
 		VkDevice         device_;
+
 		// other stuff
-		VkCommandPool command_pool_;
+
+		VkCommandPool    command_pool_;
+		VkDescriptorPool descriptor_pool_;
 
 		// Queue
 		VulkanQueue* graphics_queue_;

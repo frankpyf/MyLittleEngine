@@ -1,14 +1,17 @@
 #include "mlepch.h"
 #include "VulkanRHI.h"
-#include <vector>
-#include <GLFW/glfw3.h>
-#include "Runtime/Core/Base/Log.h"
-#include "Runtime/Core/Base/Application.h"
+#include "VulkanUtils.h"
+#include "VulkanRenderPass.h"
+#include "VulkanResource.h"
 
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_vulkan.h"
 
-#include "VulkanDevice.h"
+#include <vector>
+#include <GLFW/glfw3.h>
+#include "Runtime/Core/Base/Log.h"
+#include "Runtime/Core/Base/Application.h"
+#include "Runtime/Core/Window.h"
 
 #ifdef MLE_DEBUG
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_report(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData)
@@ -21,22 +24,10 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_report(VkDebugReportFlagsEXT flags, 
 static VkDebugReportCallbackEXT g_DebugReport = VK_NULL_HANDLE;
 
 
-namespace engine {
-	VulkanRHI::VulkanRHI()
-		:instance_(VK_NULL_HANDLE),
-		device_(nullptr),
-		viewport_(nullptr)
-	{
-	}
+namespace rhi {
 
 	void VulkanRHI::Init()
 	{
-		//**********************************************
-		//modify Instance extensions etc here
-		//**********************************************
-		/*uint32_t extensions_count = 0;
-		const char** extensions = glfwGetRequiredInstanceExtensions(&extensions_count);*/
-
 		// Setup Vulkan
 		if (!glfwVulkanSupported())
 		{
@@ -49,22 +40,40 @@ namespace engine {
 			CreateInstance();
 			SelectAndInitDevice();
 		}
+		CreateVulkanMemoryAllocator();
+
+		engine::Application& app = engine::Application::GetApp();
+		GLFWwindow* window = static_cast<GLFWwindow*>(app.GetWindow().GetNativeWindow());
+		viewport_ = new VulkanViewport(this, device_, &app.GetWindow());
+
+		frame_manager_ = new VulkanFrameResourceManager(*this);
+		frame_manager_->CreateFrames();
 	}
 
 
 	void VulkanRHI::Shutdown()
 	{
+		RHIBlockUntilGPUIdle();
+
+		ImGui_ImplVulkan_Shutdown();
+		ImGui_ImplGlfw_Shutdown();
+		ImGui::DestroyContext();
+
+		vmaDestroyAllocator(allocator_);
+		frame_manager_->DestroyFrames();
+
+		viewport_->Destroy();
 #ifdef MLE_DEBUG
 		// Remove the debug report callback
 		auto vkDestroyDebugReportCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(instance_, "vkDestroyDebugReportCallbackEXT");
 		vkDestroyDebugReportCallbackEXT(instance_, g_DebugReport, nullptr);
 #endif // MLE_DEBUG
-
 		
 		device_->Destroy();
-		delete device_;
 
 		vkDestroyInstance(instance_, nullptr);
+
+		MLE_CORE_INFO("Vulkan RHI has been shut down");
 	}
 
 	void VulkanRHI::GetExtensionsAndLayers()
@@ -145,12 +154,11 @@ namespace engine {
 			MLE_CORE_ERROR("failed to create instance");
 			abort();
 		}
-
+#ifdef MLE_DEBUG
 		// Get the function pointer (required for any extensions)
 		auto vkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(instance_, "vkCreateDebugReportCallbackEXT");
 		IM_ASSERT(vkCreateDebugReportCallbackEXT != NULL);
 
-#ifdef MLE_DEBUG
 		// Setup the debug report callback
 		VkDebugReportCallbackCreateInfoEXT debug_report_ci = {};
 		debug_report_ci.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
@@ -170,12 +178,18 @@ namespace engine {
 	{
 		uint32_t gpu_count = 0;
 		VkResult result = vkEnumeratePhysicalDevices(instance_, &gpu_count, nullptr);
-		check_vk_result(result);
-		assert(gpu_count > 0, "No GPU that support Vulkan is found!");
+		if (result != VK_SUCCESS)
+		{
+			MLE_CORE_ERROR("Failed to enumerate physical devices");
+		}
+		assert(gpu_count > 0 && "No GPU that support Vulkan is found!");
 
 		VkPhysicalDevice* gpus = (VkPhysicalDevice*)malloc(sizeof(VkPhysicalDevice) * gpu_count);
 		result = vkEnumeratePhysicalDevices(instance_, &gpu_count, gpus);
-		check_vk_result(result);
+		if (result != VK_SUCCESS)
+		{
+			MLE_CORE_ERROR("Failed to enumerate physical devices");
+		}
 
 		//struct DeviceInfo
 		//{
@@ -211,9 +225,26 @@ namespace engine {
 		//Pick the first discrete device
 		//device_ = discrete_devices[0].device;
 
-		assert(device_ != nullptr, "No proper device found!");
+		assert(device_ != nullptr && "No proper device found!");
 
 		device_->InitGPU();
+	}
+
+	void VulkanRHI::CreateVulkanMemoryAllocator()
+	{
+		VmaVulkanFunctions vulkanFunctions = {};
+		vulkanFunctions.vkGetInstanceProcAddr = &vkGetInstanceProcAddr;
+		vulkanFunctions.vkGetDeviceProcAddr = &vkGetDeviceProcAddr;
+
+		VmaAllocatorCreateInfo allocatorCreateInfo = {};
+		allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_2;
+		allocatorCreateInfo.physicalDevice = device_->GetPhysicalHandle();
+		allocatorCreateInfo.device = device_->GetDeviceHandle();
+		allocatorCreateInfo.instance = instance_;
+		allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
+
+		VmaAllocator allocator;
+		vmaCreateAllocator(&allocatorCreateInfo, &allocator);
 	}
 
 	void VulkanRHI::RHITick(float delta_time)
@@ -224,5 +255,151 @@ namespace engine {
 	void VulkanRHI::RHIBlockUntilGPUIdle()
 	{
 		vkDeviceWaitIdle(device_->GetDeviceHandle());
+	}
+
+	void* VulkanRHI::GetNativeInstance()
+	{
+		return (void*)GetVkInstance();
+	}
+
+	void* VulkanRHI::GetNativeDevice()
+	{
+		return (void*)device_->GetDeviceHandle();
+	}
+
+	void* VulkanRHI::GetNativePhysicalDevice()
+	{
+		return (void*)device_->GetPhysicalHandle();
+	}
+
+	void* VulkanRHI::GetNativeGraphicsQueue()
+	{
+		return (void*)device_->GetGfxQueue()->GetQueueHandle();
+	}
+
+	void* VulkanRHI::GetNativeComputeQueue()
+	{
+		return (void*)device_->GetComputeQueue()->GetQueueHandle();
+	}
+
+	void* VulkanRHI::GetCurrentFrame()
+	{
+		return (void*)frame_manager_->GetActiveFrame();
+	}
+
+	uint32_t VulkanRHI::GetGfxQueueFamily()
+	{
+		return device_->GetGfxQueue()->GetFamilyIndex();
+	}
+
+	void VulkanRHI::Begin()
+	{
+		VulkanFrameResource* frame = frame_manager_->BeginFrame();
+
+		viewport_->AcquireNextImage(frame->GetImageAcquireSemaphore());
+
+		VkCommandBufferBeginInfo begin_info{};
+		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		begin_info.flags = 0; // Optional
+		begin_info.pInheritanceInfo = nullptr; // Optional
+
+		if (vkBeginCommandBuffer(frame->GetCommandBuffer(), &begin_info) != VK_SUCCESS)
+		{
+			throw std::runtime_error("failed to begin recording command buffer!");
+		}
+
+		// Start the Dear ImGui frame
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+	}
+
+	void VulkanRHI::BeginRenderPass(renderer::RenderPass& pass)
+	{
+		// TODO: ONLY TEMP
+		VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
+		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
+		VkRenderPassBeginInfo info = {};
+		info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		info.renderPass = (VkRenderPass)pass.GetHandle();
+		info.framebuffer = (VkFramebuffer)pass.GetFramebuffer(viewport_->GetAccquiredIndex());
+		info.renderArea.extent.width = pass.GetWidth();
+		info.renderArea.extent.height = pass.GetHeight();
+		info.clearValueCount = 1;
+		info.pClearValues = &clearColor;
+		vkCmdBeginRenderPass(frame->GetCommandBuffer(), &info, VK_SUBPASS_CONTENTS_INLINE);
+	}
+
+	void VulkanRHI::SetViewport(float x, float y, float width, float height, float min_depth, float max_depth)
+	{
+		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
+		VkViewport viewport{};
+		viewport.x = x;
+		viewport.y = y;
+		viewport.width = width;
+		viewport.height = height;
+		viewport.minDepth = min_depth;
+		viewport.maxDepth = max_depth;
+		vkCmdSetViewport(frame->GetCommandBuffer(), 0, 1, &viewport);
+	}
+
+	void VulkanRHI::SetScissor(int32_t offset_x, int32_t offset_y, uint32_t width, uint32_t height)
+	{
+		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
+		VkRect2D scissor{ {offset_x, offset_y}, {width, height} };
+		vkCmdSetScissor(frame->GetCommandBuffer(), 0, 1, &scissor);
+	}
+
+	void VulkanRHI::GfxQueueSubmit()
+	{
+		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
+		device_->GetGfxQueue()->Submit(*frame);
+	}
+
+	void VulkanRHI::ComputeQueueSubmit()
+	{
+
+	}
+
+	void VulkanRHI::TransferQueueSubmit()
+	{
+
+	}
+
+	void VulkanRHI::EndRenderPass()
+	{
+		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
+		vkCmdEndRenderPass(frame->GetCommandBuffer());
+	}
+
+	void VulkanRHI::End()
+	{
+		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
+		vkEndCommandBuffer(frame->GetCommandBuffer());
+		GfxQueueSubmit();
+		viewport_->Present(frame->GetRenderFinishedSemaphore());
+	}
+
+	void VulkanRHI::ImGui_ImplMLE_RenderDrawData(ImDrawData* draw_data)
+	{
+		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
+		ImGui_ImplVulkan_RenderDrawData(draw_data, frame->GetCommandBuffer());
+	}
+
+	std::shared_ptr<RHITexture2D> VulkanRHI::RHICreateTexture2D(uint32_t width, uint32_t height, PixelFormat in_format, uint32_t miplevels)
+	{
+		return std::make_shared<VulkanTexture2D>(*this, width, height, in_format, miplevels);
+	}
+
+	std::shared_ptr<RHITexture2D> VulkanRHI::RHICreateTexture2D(std::string_view path, uint32_t miplevels)
+	{
+		return std::make_shared<VulkanTexture2D>(*this, path, miplevels);
+	}
+
+	renderer::RenderPass* VulkanRHI::RHICreateRenderPass(const char* render_pass_name, const renderer::RenderPassDesc& desc,
+		const std::function<void(renderer::RenderPass*)>& setup,
+		const std::function<void(renderer::RenderPass*)>& exec)
+	{
+		return new renderer::VulkanRenderPass(*this, render_pass_name, desc, setup, exec);
 	}
 }

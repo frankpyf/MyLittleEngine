@@ -23,7 +23,6 @@ namespace engine {
 	class Window
 	{
 	public:
-		//using EventCallbackFn = std::function<void(Event&)>;
 		Window(const WindowProps& props);
 		virtual ~Window();
 

@@ -1,35 +1,43 @@
 #pragma once
 #include <vulkan/vulkan.h>
-namespace engine {
-	class VulkanSwapChain;
-	class VulkanDevice;
-	class VulkanRHI;
+#include "VulkanSwapChain.h"
+namespace engine{
 	class Window;
+}
+
+namespace rhi {
+	class VulkanDevice;
+	class VulkanCommandBuffer;
+	class VulkanRHI;
+
 
 	class VulkanViewport
 	{
 	public:
-		VulkanViewport(VulkanRHI* in_rhi, VulkanDevice* in_device, uint32_t in_size_x, uint32_t in_size_y);
+		VulkanViewport(VulkanRHI* in_rhi, VulkanDevice* in_device, engine::Window* in_window);
+		~VulkanViewport();
+
+		void Destroy();
 
 		inline VulkanSwapChain* GetSwapChain() { return swap_chain_; }
 
-		void CreateSwapChain();
-		void DestroySwapChain();
+		void CreateWindowSurface();
+		void CreateSwapChain(VulkanSwapChainRecreateInfo* recreate_info);
+		void CleanupSwapChain();
 		void RecreateSwapChain();
-		void Resize(uint32_t in_size_x, uint32_t in_size_y);
 
-		void Present(const VkCommandBuffer* buffers, uint32_t* imageIndex);
+		void Present(VkSemaphore render_finished_semaphore);
 
-		VkResult AcquireNextImage(uint32_t* imageIndex);
-		
+		void AcquireNextImage(VkSemaphore& image_available_semaphore);
+		uint32_t GetAccquiredIndex() { return acquired_image_index_; };
 	protected:
 		VulkanRHI* rhi_;
-		uint32_t size_x_;
-		uint32_t size_y_;
 
 		VulkanSwapChain* swap_chain_;
 		VulkanDevice* device_;
 
-		Window* window_handle_;
+		engine::Window* window_handle_;
+		VkSurfaceKHR surface_;
+		uint32_t acquired_image_index_;
 	};
 }

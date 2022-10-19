@@ -1,19 +1,18 @@
 #include "mlepch.h"
 #include "VulkanDevice.h"
-#include "VulkanQueue.h"
+#include "VulkanUtils.h"
 #include "Runtime/Core/Base/Log.h"
 
 #define ARRAY_SIZE( ARRAY ) (sizeof (ARRAY) / sizeof (ARRAY[0]))
 
-namespace engine {
+namespace rhi {
 	VulkanDevice::VulkanDevice(VulkanRHI* in_rhi, VkPhysicalDevice in_gpu)
 		:gpu_(in_gpu),
 		device_(VK_NULL_HANDLE),
 		graphics_queue_(VK_NULL_HANDLE),
 		compute_queue_(VK_NULL_HANDLE),
 		transfer_queue_(VK_NULL_HANDLE),
-		present_queue_(VK_NULL_HANDLE),
-		command_pool_(VK_NULL_HANDLE)
+		present_queue_(VK_NULL_HANDLE)
 	{
 		rhi_ = in_rhi;
 	}
@@ -26,14 +25,20 @@ namespace engine {
 	}
 
 	void VulkanDevice::Destroy()
-	{
-		// todo:delete 3 VulkanQueue pointers
+	{	
+		vkDestroyDescriptorPool(device_, descriptor_pool_, nullptr);
+		vkDestroyCommandPool(device_, command_pool_, nullptr);
+
 		delete graphics_queue_;
 		delete compute_queue_;
+		delete transfer_queue_;
 
 		if (device_ != VK_NULL_HANDLE)
 			vkDestroyDevice(device_, nullptr);
+
+		MLE_CORE_INFO("device has been destroyed");
 	}
+
 	void VulkanDevice::CreateLogicalDevice()
 	{
 		VkResult result;
@@ -70,6 +75,7 @@ namespace engine {
 				{
 					gfx_queue_family_index = family_index;
 					is_valid_queue = true;
+					MLE_CORE_INFO("Initializing Gfx Queue with Queue family {0} which has {1} queues", family_index, curr_props.queueCount);
 				}
 			}
 
@@ -79,6 +85,7 @@ namespace engine {
 				{
 					compute_queue_family_index = family_index;
 					is_valid_queue = true;
+					MLE_CORE_INFO("Initializing Compute Queue with Queue family {0} which has {1} queues", family_index, curr_props.queueCount);
 				}
 			}
 
@@ -90,6 +97,7 @@ namespace engine {
 				{
 					transfer_queue_family_index = family_index;
 					is_valid_queue = true;
+					MLE_CORE_INFO("Initializing Transfer Queue with Queue family {0} which has {1} queues", family_index, curr_props.queueCount);
 				}
 			}
 			if (!is_valid_queue)
@@ -105,7 +113,7 @@ namespace engine {
 			//curr_queue.queueCount = curr_props.queueCount;
 			curr_queue.queueCount = 1;
 			curr_queue.pQueuePriorities = queue_priority;
-			MLE_CORE_INFO("Initialized Queue family {0} which has {1} queues", family_index, curr_props.queueCount);
+			
 		}
 
 		device_create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_create_info.size());
@@ -135,9 +143,40 @@ namespace engine {
 		poolInfo.flags =
 			VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
-		if (vkCreateCommandPool(device_, &poolInfo, nullptr, &command_pool_) != VK_SUCCESS) {
+		if (vkCreateCommandPool(device_, &poolInfo, nullptr, &command_pool_) != VK_SUCCESS)
+		{
 			throw std::runtime_error("failed to create command pool!");
 		}
+	}
+
+	void VulkanDevice::CreateDescriptorPool()
+	{
+		VkDescriptorPoolSize pool_sizes[] =
+		{
+			{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+			{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+		};
+		VkDescriptorPoolCreateInfo pool_info = {};
+		pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+		pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+		pool_info.maxSets = 1000 * (int)(sizeof(pool_sizes)/sizeof(*pool_sizes));
+		pool_info.poolSizeCount = (uint32_t)(sizeof(pool_sizes) / sizeof(*pool_sizes));
+		pool_info.pPoolSizes = pool_sizes;
+		VkResult result = vkCreateDescriptorPool(device_, &pool_info, nullptr, &descriptor_pool_);
+		if (result != VK_SUCCESS)
+		{
+			throw std::runtime_error("failed to create descriptor pool!");
+		}
+		MLE_CORE_INFO("Global descriptor pool has been created!");
 	}
 
 	bool VulkanDevice::QueryGPU()
@@ -164,71 +203,8 @@ namespace engine {
 			MLE_CORE_WARN("geometry shader feature is required");
 		
 		CreateLogicalDevice();
+		CreateDescriptorPool();
 		CreateCommandPool();
-	}
-
-	uint32_t VulkanDevice::FindMemoryType(uint32_t type_filter, VkMemoryPropertyFlags properties)
-	{
-		VkPhysicalDeviceMemoryProperties mem_properties;
-		vkGetPhysicalDeviceMemoryProperties(gpu_, &mem_properties);
-		for (uint32_t i = 0; i < mem_properties.memoryTypeCount; i++) {
-			if ((type_filter & (1 << i)) &&
-				(mem_properties.memoryTypes[i].propertyFlags & properties) == properties) {
-				return i;
-			}
-		}
-
-		throw std::runtime_error("failed to find suitable memory type!");
-	}
-
-	void VulkanDevice::CreateImageWithInfo(
-		const VkImageCreateInfo& image_info,
-		VkMemoryPropertyFlags properties,
-		VkImage& image,
-		VkDeviceMemory& image_memory) 
-	{
-		if (vkCreateImage(device_, &image_info, nullptr, &image) != VK_SUCCESS) 
-		{
-			throw std::runtime_error("failed to create image!");
-		}
-
-		VkMemoryRequirements mem_requirements;
-		vkGetImageMemoryRequirements(device_, image, &mem_requirements);
-
-		VkMemoryAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		allocInfo.allocationSize = mem_requirements.size;
-		allocInfo.memoryTypeIndex = FindMemoryType(mem_requirements.memoryTypeBits, properties);
-
-		if (vkAllocateMemory(device_, &allocInfo, nullptr, &image_memory) != VK_SUCCESS)
-		{
-			throw std::runtime_error("failed to allocate image memory!");
-		}
-
-		if (vkBindImageMemory(device_, image, image_memory, 0) != VK_SUCCESS) {
-			throw std::runtime_error("failed to bind image memory!");
-		}
-	}
-
-	VkFormat VulkanDevice::FindSupportedFormat(
-		const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) 
-	{
-		for (VkFormat format : candidates) 
-		{
-			VkFormatProperties props;
-			vkGetPhysicalDeviceFormatProperties(gpu_, format, &props);
-
-			if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) 
-			{
-				return format;
-			}
-			else if (
-				tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) 
-			{
-				return format;
-			}
-		}
-		throw std::runtime_error("failed to find supported format!");
 	}
 
 	void VulkanDevice::SetupPresentQueue(VkSurfaceKHR in_surface)
@@ -242,7 +218,7 @@ namespace engine {
 				vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, family_index, in_surface, &supports_present);
 				if (supports_present)
 				{
-					MLE_CORE_INFO("Queue Family %{0}: Supports Present", family_index);
+					MLE_CORE_INFO("Queue Family {0}: Supports Present", family_index);
 				}
 				return (supports_present == VK_TRUE);
 			};
@@ -255,6 +231,42 @@ namespace engine {
 				present_queue_ = compute_queue_;
 			else
 				present_queue_ = graphics_queue_;
+			MLE_CORE_INFO("Present Queue family index: {0}", present_queue_->GetFamilyIndex());
 		}
+	}
+
+	VkCommandBuffer VulkanDevice::BeginSingleTimeCommands()
+	{
+		VkCommandBufferAllocateInfo alloc_info{};
+		alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		alloc_info.commandPool = command_pool_;
+		alloc_info.commandBufferCount = 1;
+
+		VkCommandBuffer commandBuffer;
+		vkAllocateCommandBuffers(device_, &alloc_info, &commandBuffer);
+
+		VkCommandBufferBeginInfo beginInfo{};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+		vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+		return commandBuffer;
+	}
+
+	void VulkanDevice::EndSingleTimeCommands(VkCommandBuffer command_buffer)
+	{
+		vkEndCommandBuffer(command_buffer);
+
+		VkSubmitInfo submitInfo{};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &command_buffer;
+
+		vkQueueSubmit(graphics_queue_->GetQueueHandle(), 1, &submitInfo, VK_NULL_HANDLE);
+		vkQueueWaitIdle(graphics_queue_->GetQueueHandle());
+
+		vkFreeCommandBuffers(device_, command_pool_, 1, &command_buffer);
 	}
 }
