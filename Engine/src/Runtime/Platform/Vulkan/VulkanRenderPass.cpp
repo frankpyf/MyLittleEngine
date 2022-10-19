@@ -83,6 +83,7 @@ namespace renderer {
 
 	VulkanRenderPass::~VulkanRenderPass()
 	{
+		rhi_.RHIBlockUntilGPUIdle();
 		for(int i=0;i<framebuffer_.size();i++)
 			vkDestroyFramebuffer(rhi_.GetDevice()->GetDeviceHandle(), framebuffer_[i], nullptr);
 
