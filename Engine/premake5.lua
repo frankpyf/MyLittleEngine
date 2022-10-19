@@ -16,6 +16,7 @@ project "Runtime"
       "../vendor/imgui",
       "../vendor/GLFW/include",
       "../vendor/stb_image",
+      "../vendor/vma",
 
       "%{IncludeDir.VulkanSDK}",
       "%{IncludeDir.glm}",

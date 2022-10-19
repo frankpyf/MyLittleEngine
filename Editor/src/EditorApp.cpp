@@ -1,8 +1,8 @@
 #include "mlepch.h"
-#include <Runtime/Core/Application.h>
-#include <Runtime/Core/EntryPoint.h>
+#include <Runtime/Core/Base/Application.h>
+#include <Runtime/Core/Base/EntryPoint.h>
 
-#include "Runtime/Image.h"
+#include "EditorLayer.h"
 
 class ExampleLayer : public engine::Layer
 {
@@ -23,21 +23,22 @@ engine::Application* engine::CreateApplication(int argc, char** argv)
 	spec.name = "Editor";
 
 	engine::Application* app = new engine::Application(spec);
-	app->PushLayer<ExampleLayer>();
-	app->SetMenubarCallback([app]()
-	{
-		if (ImGui::BeginMenu("File"))
-		{
-			if (ImGui::MenuItem("Open File"))
-			{
-				//*****open file callback here********
-			}
-			if (ImGui::MenuItem("Exit"))
-			{
-				app->Close();
-			}
-			ImGui::EndMenu();
-		}
-	});
+	app->PushLayer<editor::EditorLayer>();
+	//app->PushLayer<ExampleLayer>();
+	//app->SetMenubarCallback([app]()
+	//{
+	//	if (ImGui::BeginMenu("File"))
+	//	{
+	//		if (ImGui::MenuItem("Open File"))
+	//		{
+	//			//*****open file callback here********
+	//		}
+	//		if (ImGui::MenuItem("Exit"))
+	//		{
+	//			app->Close();
+	//		}
+	//		ImGui::EndMenu();
+	//	}
+	//});
 	return app;
 }

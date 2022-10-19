@@ -142,7 +142,7 @@ uint32_t queue_family_index = xxx;//你需要的队列族的索引
 VkDeviceQueueCreateInfo queueCreateInfo{};
 queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 queueCreateInfo.queueFamilyIndex = index;
-//目前的驱动只允许创建小部分的队列，而且基本上你也不需要超过一个的队列
+//目前的驱动只允许创建少数量的队列，而且基本上你也不需要超过一个的队列
 //因为你可以用多线程创建很多command buffers（见上图）然后一次性提交
 queueCreateInfo.queueCount = 1;
 //指定队列的优先级，0.0f-1.0f

@@ -1,6 +1,6 @@
 #pragma once
-#include "Runtime/Core/Application.h"
-#include "Runtime/Core/Log.h"
+#include "Runtime/Core/Base/Application.h"
+#include "Runtime/Core/Base/Log.h"
 #ifdef MLE_PLATFORM_WINDOWS
 
 extern engine::Application* engine::CreateApplication(int argc, char** argv);
@@ -18,7 +18,6 @@ namespace engine {
 			app->Run();
 			delete app;
 		}
-
 		return 0;
 	}
 

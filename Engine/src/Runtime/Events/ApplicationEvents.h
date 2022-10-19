@@ -3,6 +3,7 @@
 #include "Event.h"
 
 namespace engine {
+	// still from Hazel Engine
 	class WindowResizeEvent : public Event
 	{
 	public:

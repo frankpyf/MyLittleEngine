@@ -1,11 +1,15 @@
 #pragma once
 
-#include "Runtime/Core/Layer.h"
+#include "Runtime/Core/Base/Layer.h"
 #include "Runtime/Core/Window.h"
 #include "Runtime/Events/Event.h"
+#include "Runtime/Events/ApplicationEvents.h"
+#include "Runtime/Function/Renderer/Renderer.h"
 
 #include "imgui.h"
 #include "vulkan/vulkan.h"
+
+#include <chrono>
 
 
 void check_vk_result(VkResult err);
@@ -46,25 +50,24 @@ namespace engine {
 		static Application& GetApp() { return *app_instance_; }
 		Window& GetWindow() { return*app_window_; }
 
-		static VkInstance GetInstance();
-		static VkPhysicalDevice GetPhysicalDevice();
-		static VkDevice GetDevice();
-
-		static VkCommandBuffer GetCommandBuffer(bool begin);
-		static void FlushCommandBuffer(VkCommandBuffer commandBuffer);
-
-		static void SubmitResourceFree(std::function<void()>&& func);
 	private:
 		void Init();
 		void Shutdown();
+
+		void OnWindowResize(WindowResizeEvent& event);
 	private:
 		static Application* app_instance_;
 		ApplicationSpecification app_specification_;
 		std::unique_ptr<Window> app_window_;
 		bool is_running_ = false;
+		bool is_minimized_ = false;
 
 		std::vector<std::shared_ptr<Layer>> layer_stack_;
 		std::function<void()> menu_bar_callback_;
+
+		renderer::Renderer* renderer_;
+
+		std::chrono::steady_clock::time_point last_tick_time_point_{ std::chrono::steady_clock::now() };
 	};
 
 	// Implemented by CLIENT
