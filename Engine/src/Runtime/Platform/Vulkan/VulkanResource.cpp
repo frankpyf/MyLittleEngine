@@ -3,9 +3,6 @@
 #include "VulkanRHI.h"
 #include "VulkanUtils.h"
 
-#include "imgui.h"
-#include "backends/imgui_impl_vulkan.h"
-
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -26,7 +23,7 @@ namespace rhi {
         :RHITexture2D(width, height), miplevels_(miplevels), format_(in_format), rhi_(in_rhi)
     {
         VkFormat format = VulkanUtils::PixelFormatToVulkanFormat(format_);
-        VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+        VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
        
         AllocateMemory(width_ * height_ * Utils::BytesPerPixel(format_), usage);
     }
@@ -89,13 +86,14 @@ namespace rhi {
                                          (VkPhysicalDevice)rhi_.GetNativePhysicalDevice(),
                                           sampler_);
 
-        // Create the Descriptor Set:
-        descriptor_set_ = (VkDescriptorSet)ImGui_ImplVulkan_AddTexture(sampler_, image_view_, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        
     }
 
     void VulkanTexture2D::Release()
     {
-        /*VulkanUtils::VMAReleaseImage(image_, image_view_, sampler_, image_allocation_);*/
+        vkDestroySampler((VkDevice)rhi_.GetNativeDevice(), sampler_, nullptr);
+        vkDestroyImageView((VkDevice)rhi_.GetNativeDevice(), image_view_, nullptr);
+        vmaDestroyImage(rhi_.allocator_, image_, image_allocation_);
         sampler_ = nullptr;
         image_view_ = nullptr;
         image_ = nullptr;
@@ -137,7 +135,8 @@ namespace rhi {
                                            1,
                                            1,
                                            VK_IMAGE_ASPECT_COLOR_BIT);
-        /*VulkanUtils::DestroyBuffer(staging_buffer, staging_buffer_memory);*/
+        vkDestroyBuffer(rhi_.GetDevice()->GetDeviceHandle(), staging_buffer, nullptr);
+        vkFreeMemory(rhi_.GetDevice()->GetDeviceHandle(), staging_buffer_memory, nullptr);
     }
 
     void VulkanTexture2D::Resize(uint32_t width, uint32_t height)

@@ -11,6 +11,8 @@ namespace engine {
 		virtual void OnDetach() {}
 
 		virtual void OnUIRender() {}
+
+		virtual void OnUpdate() {}
 	};
 
 }

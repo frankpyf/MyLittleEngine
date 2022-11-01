@@ -20,7 +20,8 @@ namespace rhi {
 		uint32_t GetWidth() { return width_; };
 		uint32_t GetHeight() { return height_; };
 
-		virtual void* GetTextureID() const = 0;
+		virtual void* GetTextureID() = 0;
+		virtual void* GetView() = 0;
 
 		virtual void SetData(const void* data) = 0;
 		virtual void Resize(uint32_t width, uint32_t height) = 0;

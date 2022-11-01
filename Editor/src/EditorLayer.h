@@ -9,5 +9,8 @@ namespace editor{
 		virtual void OnDetach() override;
 		virtual void OnUIRender() override;
 	private:
+		std::shared_ptr<rhi::RHITexture2D> back_buffer_;
+
+
 	};
 }

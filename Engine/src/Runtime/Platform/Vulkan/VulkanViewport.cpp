@@ -112,4 +112,14 @@ namespace rhi {
 			throw std::runtime_error("failed to acquire swap chain image!");
 		}
 	}
+
+	uint32_t VulkanViewport::GetViewportWidth()
+	{
+		return window_handle_->GetWidth();
+	}
+
+	uint32_t VulkanViewport::GetViewportHeight()
+	{
+		return window_handle_->GetHeight();
+	}
 }

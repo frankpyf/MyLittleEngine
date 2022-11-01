@@ -21,24 +21,10 @@ engine::Application* engine::CreateApplication(int argc, char** argv)
 {
 	engine::ApplicationSpecification spec;
 	spec.name = "Editor";
+	spec.width = 1920;
+	spec.height = 1080;
 
 	engine::Application* app = new engine::Application(spec);
 	app->PushLayer<editor::EditorLayer>();
-	//app->PushLayer<ExampleLayer>();
-	//app->SetMenubarCallback([app]()
-	//{
-	//	if (ImGui::BeginMenu("File"))
-	//	{
-	//		if (ImGui::MenuItem("Open File"))
-	//		{
-	//			//*****open file callback here********
-	//		}
-	//		if (ImGui::MenuItem("Exit"))
-	//		{
-	//			app->Close();
-	//		}
-	//		ImGui::EndMenu();
-	//	}
-	//});
 	return app;
 }

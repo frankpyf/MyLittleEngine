@@ -2,6 +2,7 @@
 #include "VulkanRHI.h"
 #include "VulkanUtils.h"
 #include "VulkanRenderPass.h"
+#include "VulkanPipeline.h"
 #include "VulkanResource.h"
 
 #include "backends/imgui_impl_glfw.h"
@@ -17,7 +18,7 @@
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_report(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData)
 {
 	(void)flags; (void)object; (void)location; (void)messageCode; (void)pUserData; (void)pLayerPrefix; // Unused arguments
-	fprintf(stderr, "[vulkan] Debug report from ObjectType: %i\nMessage: %s\n\n", objectType, pMessage);
+	MLE_CORE_ERROR("[vulkan] Debug report from ObjectType: {0}\nMessage: {1}\n\n", objectType, pMessage);
 	return VK_FALSE;
 }
 #endif // MLE_DEBUG
@@ -243,8 +244,12 @@ namespace rhi {
 		allocatorCreateInfo.instance = instance_;
 		allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
 
-		VmaAllocator allocator;
-		vmaCreateAllocator(&allocatorCreateInfo, &allocator);
+		if (vmaCreateAllocator(&allocatorCreateInfo, &allocator_) != VK_SUCCESS)
+		{
+			MLE_CORE_ERROR("Failed to create VMA allocator");
+			throw std::runtime_error("Failed to create VMA allocator");
+		}
+		MLE_CORE_INFO("VMA allocator created");
 	}
 
 	void VulkanRHI::RHITick(float delta_time)
@@ -282,6 +287,22 @@ namespace rhi {
 		return (void*)device_->GetComputeQueue()->GetQueueHandle();
 	}
 
+	void* VulkanRHI::GetNativeSwapchainImageView()
+	{
+		uint32_t index = viewport_->GetAccquiredIndex();
+		return (void*)viewport_->GetSwapChain()->GetSwapchianImageView(index);
+	}
+
+	uint32_t VulkanRHI::GetViewportWidth()
+	{
+		return viewport_->GetViewportWidth();
+	}
+
+	uint32_t VulkanRHI::GetViewportHeight()
+	{
+		return viewport_->GetViewportHeight();
+	}
+
 	void* VulkanRHI::GetCurrentFrame()
 	{
 		return (void*)frame_manager_->GetActiveFrame();
@@ -314,22 +335,33 @@ namespace rhi {
 		ImGui::NewFrame();
 	}
 
-	void VulkanRHI::BeginRenderPass(renderer::RenderPass& pass)
+	void VulkanRHI::BeginRenderPass(renderer::RenderPass& pass,
+									renderer::RenderTarget& render_target)
 	{
-		// TODO: ONLY TEMP
-		VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
+		VkClearValue clear_color{};
+		clear_color.color.float32[0] = render_target.GetClearColor().r * render_target.GetClearColor().a;
+		clear_color.color.float32[1] = render_target.GetClearColor().g * render_target.GetClearColor().a;
+		clear_color.color.float32[2] = render_target.GetClearColor().b * render_target.GetClearColor().a;
+		clear_color.color.float32[3] = render_target.GetClearColor().a;
+
 		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
 		VkRenderPassBeginInfo info = {};
 		info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		info.renderPass = (VkRenderPass)pass.GetHandle();
-		info.framebuffer = (VkFramebuffer)pass.GetFramebuffer(viewport_->GetAccquiredIndex());
-		info.renderArea.extent.width = pass.GetWidth();
-		info.renderArea.extent.height = pass.GetHeight();
-		info.clearValueCount = 1;
-		info.pClearValues = &clearColor;
+		info.framebuffer = (VkFramebuffer)render_target.GetHandle();
+		info.renderArea.extent.width = render_target.GetWidth();
+		info.renderArea.extent.height = render_target.GetHeight();
+		// temp
+		info.clearValueCount = 2;
+		info.pClearValues = &clear_color;
 		vkCmdBeginRenderPass(frame->GetCommandBuffer(), &info, VK_SUBPASS_CONTENTS_INLINE);
 	}
 
+	void VulkanRHI::BindGfxPipeline(renderer::Pipeline* pipeline)
+	{
+		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
+		vkCmdBindPipeline(frame->GetCommandBuffer(),VK_PIPELINE_BIND_POINT_GRAPHICS,(VkPipeline)pipeline->GetHandle());
+	}
 	void VulkanRHI::SetViewport(float x, float y, float width, float height, float min_depth, float max_depth)
 	{
 		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
@@ -348,6 +380,19 @@ namespace rhi {
 		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
 		VkRect2D scissor{ {offset_x, offset_y}, {width, height} };
 		vkCmdSetScissor(frame->GetCommandBuffer(), 0, 1, &scissor);
+	}
+
+	void VulkanRHI::Draw(uint32_t vertex_count,uint32_t instance_count)
+	{
+		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
+		// temp
+		vkCmdDraw(frame->GetCommandBuffer(), vertex_count, instance_count, 0, 0);
+	}
+
+	void VulkanRHI::NextSubpass()
+	{
+		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
+		vkCmdNextSubpass(frame->GetCommandBuffer(), VK_SUBPASS_CONTENTS_INLINE);
 	}
 
 	void VulkanRHI::GfxQueueSubmit()
@@ -378,6 +423,7 @@ namespace rhi {
 		vkEndCommandBuffer(frame->GetCommandBuffer());
 		GfxQueueSubmit();
 		viewport_->Present(frame->GetRenderFinishedSemaphore());
+		vkDeviceWaitIdle(device_->GetDeviceHandle());
 	}
 
 	void VulkanRHI::ImGui_ImplMLE_RenderDrawData(ImDrawData* draw_data)
@@ -397,9 +443,19 @@ namespace rhi {
 	}
 
 	renderer::RenderPass* VulkanRHI::RHICreateRenderPass(const char* render_pass_name, const renderer::RenderPassDesc& desc,
-		const std::function<void(renderer::RenderPass*)>& setup,
-		const std::function<void(renderer::RenderPass*)>& exec)
+		const std::function<void(renderer::RenderPass&, renderer::RenderTarget&)>& exec)
 	{
-		return new renderer::VulkanRenderPass(*this, render_pass_name, desc, setup, exec);
+		return new renderer::VulkanRenderPass(*this, render_pass_name, desc, exec);
 	}
+	renderer::RenderTarget* VulkanRHI::RHICreateRenderTarget(renderer::RenderPass& pass)
+	{
+		return new renderer::VulkanRenderTarget(*this, pass);
+	}
+	renderer::Pipeline*		VulkanRHI::RHICreatePipeline(const char* vert_path,
+														 const char* frag_path,
+														 const renderer::PipelineDesc& desc)
+	{
+		return new renderer::VulkanPipeline(*this, vert_path, frag_path, desc);
+	}
+
 }

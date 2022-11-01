@@ -16,7 +16,7 @@ namespace rhi {
 									VkMemoryPropertyFlags properties, 
 									VkBuffer& buffer,
 									VmaAllocation& buffer_allocation);
-		static void VMACreateImage(const VmaAllocator& allocator,
+		static void VMACreateImage(VmaAllocator& allocator,
 								   uint32_t              image_width,
 								   uint32_t              image_height,
 								   VkFormat              format,
