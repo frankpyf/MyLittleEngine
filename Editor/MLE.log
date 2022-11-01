@@ -1,20 +1,27 @@
-[2022-10-19 12:10:45.617] [Core] [info] Engine running
-[2022-10-19 12:10:46.742] [Core] [info] Found 2 device(s)
-[2022-10-19 12:10:46.743] [Core] [info] device is: NVIDIA GeForce RTX 2060
-[2022-10-19 12:10:46.743] [Core] [info] Found 3 Queue Families
-[2022-10-19 12:10:46.744] [Core] [info] Initializing Gfx Queue with Queue family 0 which has 16 queues
-[2022-10-19 12:10:46.744] [Core] [info] Initializing Transfer Queue with Queue family 1 which has 2 queues
-[2022-10-19 12:10:46.745] [Core] [info] Initializing Compute Queue with Queue family 2 which has 8 queues
-[2022-10-19 12:10:47.039] [Core] [info] Logical Device is created from: NVIDIA GeForce RTX 2060
-[2022-10-19 12:10:47.042] [Core] [info] Global descriptor pool has been created!
-[2022-10-19 12:10:47.067] [Core] [info] Present mode: Mailbox
-[2022-10-19 12:10:47.067] [Core] [info] This swapchain supports at least 3 image(s)
-[2022-10-19 12:10:47.068] [Core] [info] Queue Family 0: Supports Present
-[2022-10-19 12:10:47.068] [Core] [info] Queue Family 2: Supports Present
-[2022-10-19 12:10:47.068] [Core] [info] Present Queue family index: 2
-[2022-10-19 12:10:48.115] [Core] [info] Swapchain created with 3 image(s)
-[2022-10-19 12:10:48.116] [Core] [info] Created 2 frame resource(s)
-[2022-10-19 12:10:48.116] [Core] [info] Vulkan Render Pass has been created
-[2022-10-19 12:10:53.062] [Core] [info] TEST pass has been deconstructed
-[2022-10-19 12:10:53.134] [Core] [info] device has been destroyed
-[2022-10-19 12:10:54.280] [Core] [info] Vulkan RHI has been shut down
+[2022-11-01 21:25:34.608] [Core] [info] Engine running
+[2022-11-01 21:25:37.268] [Core] [info] Found 2 device(s)
+[2022-11-01 21:25:37.269] [Core] [info] device is: NVIDIA GeForce RTX 2060
+[2022-11-01 21:25:37.269] [Core] [info] Found 3 Queue Families
+[2022-11-01 21:25:37.269] [Core] [info] Initializing Gfx Queue with Queue family 0 which has 16 queues
+[2022-11-01 21:25:37.270] [Core] [info] Initializing Transfer Queue with Queue family 1 which has 2 queues
+[2022-11-01 21:25:37.270] [Core] [info] Initializing Compute Queue with Queue family 2 which has 8 queues
+[2022-11-01 21:25:37.585] [Core] [info] Logical Device is created from: NVIDIA GeForce RTX 2060
+[2022-11-01 21:25:37.589] [Core] [info] Global descriptor pool has been created!
+[2022-11-01 21:25:37.589] [Core] [info] VMA allocator created
+[2022-11-01 21:25:37.618] [Core] [info] Present mode: Mailbox
+[2022-11-01 21:25:37.618] [Core] [info] This swapchain supports at least 3 image(s)
+[2022-11-01 21:25:37.619] [Core] [info] Queue Family 0: Supports Present
+[2022-11-01 21:25:37.619] [Core] [info] Queue Family 2: Supports Present
+[2022-11-01 21:25:37.619] [Core] [info] Present Queue family index: 2
+[2022-11-01 21:25:38.425] [Core] [info] Swapchain created with 3 image(s)
+[2022-11-01 21:25:38.426] [Core] [info] Created 2 frame resource(s)
+[2022-11-01 21:25:38.427] [Core] [info] Vulkan Render Pass has been created
+[2022-11-01 21:25:38.428] [Core] [info] Vulkan Render Pass has been created
+[2022-11-01 21:26:39.134] [APP] [info] mouse pressed: 0
+[2022-11-01 21:26:39.223] [APP] [info] mouse released: 0
+[2022-11-01 21:26:39.818] [APP] [info] mouse pressed: 0
+[2022-11-01 21:26:39.923] [APP] [info] mouse released: 0
+[2022-11-01 21:26:39.925] [Core] [info] Triangle Pass pass has been deconstructed
+[2022-11-01 21:26:39.925] [Core] [info] Present & UI Pass pass has been deconstructed
+[2022-11-01 21:26:40.004] [Core] [info] device has been destroyed
+[2022-11-01 21:26:41.293] [Core] [info] Vulkan RHI has been shut down

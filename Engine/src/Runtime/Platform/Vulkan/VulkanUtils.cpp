@@ -44,7 +44,7 @@ namespace rhi {
         vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &buffer, &buffer_allocation, nullptr);
     }
 
-    void VulkanUtils::VMACreateImage(const VmaAllocator& allocator,
+    void VulkanUtils::VMACreateImage(VmaAllocator& allocator,
                                      uint32_t              image_width,
                                      uint32_t              image_height,
                                      VkFormat              format,
@@ -71,10 +71,16 @@ namespace rhi {
         image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
         image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
+        // TODO: SUPPORT LAZILY ALLOCATED
         VmaAllocationCreateInfo allocInfo = {};
         allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-
-        vmaCreateImage(allocator, &image_create_info, &allocInfo, &image, &image_allocation, NULL);
+        
+        VkResult result = vmaCreateImage(allocator, &image_create_info, &allocInfo, &image, &image_allocation, NULL);
+        if ( result != VK_SUCCESS)
+        {
+            MLE_CORE_ERROR("failed to create image with VMA!{0}", result);
+            throw std::runtime_error("failed to create image with VMA!");
+        }
     }
 
     void VulkanUtils::CreateImage(VulkanDevice* device,
@@ -148,7 +154,7 @@ namespace rhi {
         VkImageView image_view;
         if (vkCreateImageView(device, &image_view_create_info, nullptr, &image_view) != VK_SUCCESS)
         {
-            return image_view;
+            throw std::runtime_error("failed to create image view!");
         }
 
         return image_view;

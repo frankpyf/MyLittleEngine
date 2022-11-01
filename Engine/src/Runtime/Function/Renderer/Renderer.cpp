@@ -43,5 +43,7 @@ namespace renderer
     void Renderer::End()
     {
         rhi::RHICommands::End();
+        renderer::RenderGraph& render_graph = renderer::RenderGraph::GetInstance();
+        render_graph.PostRun();
     }
 }

@@ -123,7 +123,7 @@ namespace rhi {
 		result = vkCreateDevice(gpu_, &device_create_info, nullptr, &device_);
 		if (result != VK_SUCCESS)
 		{
-			MLE_CORE_ERROR("failed to create logical device");
+			MLE_CORE_ERROR("failed to create logical device: {0}", result);
 			abort();
 		}
 

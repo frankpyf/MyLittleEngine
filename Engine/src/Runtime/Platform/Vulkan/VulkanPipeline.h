@@ -1,32 +1,18 @@
 #pragma once
 #include <vulkan/vulkan.h>
+#include "vk_mem_alloc.h"
+#include "Runtime/Function/Renderer/Pipeline.h"
 namespace rhi {
-	struct PipelineConfigInfo {
-		PipelineConfigInfo(const PipelineConfigInfo&) = delete;
-		PipelineConfigInfo& operator=(const PipelineConfigInfo&) = delete;
-
-		VkPipelineViewportStateCreateInfo viewportInfo;
-		VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
-		VkPipelineRasterizationStateCreateInfo rasterizationInfo;
-		VkPipelineMultisampleStateCreateInfo multisampleInfo;
-		VkPipelineColorBlendAttachmentState colorBlendAttachment;
-		VkPipelineColorBlendStateCreateInfo colorBlendInfo;
-		VkPipelineDepthStencilStateCreateInfo depthStencilInfo;
-		std::vector<VkDynamicState> dynamicStateEnables;
-		VkPipelineDynamicStateCreateInfo dynamicStateInfo;
-		VkPipelineLayout pipelineLayout = nullptr;
-		VkRenderPass renderPass = nullptr;
-		uint32_t subpass = 0;
-	};
-
-	class VulkanPipeline
+	class VulkanRHI;
+}
+namespace renderer {
+	class VulkanPipeline : public Pipeline
 	{
 	public:
-		friend class VulkanDevice;
-		VulkanPipeline(VulkanDevice* in_device,
-			const std::string vert_path,
-			const std::string frag_path,
-			const PipelineConfigInfo& config);
+		VulkanPipeline(rhi::VulkanRHI& in_rhi,
+					   const char* vert_path,
+					   const char* frag_path,
+					   const PipelineDesc& desc);
 		virtual ~VulkanPipeline();
 
 		void DestroyPipeline();
@@ -34,23 +20,21 @@ namespace rhi {
 		VulkanPipeline(const VulkanPipeline&) = delete;
 		void operator = (const VulkanPipeline&) = delete;
 
-		static void DefaultPipelineConfigInfo(PipelineConfigInfo& configInfo);
-
-		VkPipeline& GetPipeline() { return pipeline_; };
+		virtual void* GetHandle() override { return (void*)pipeline_; };
 	private:
-		std::vector<char> ReadFile(const std::string& filename);
+		std::vector<char> ReadFile(const char* file_path);
 
-		void CreateGraphicsPipeline(
-			const std::string vert_path,
-			const std::string frag_path,
-			const PipelineConfigInfo& config
-		);
-
+		void CreateGraphicsPipeline(const PipelineDesc& desc);
 		void CreateShaderModule(const std::vector<char>& code, VkShaderModule* shader_module);
 	protected:
-		VulkanDevice* device_;
 		VkPipeline  pipeline_;
+
+		// Temp
+		VkPipelineLayout pipeline_layout_;
+
 		VkShaderModule vert_shader_module_;
 		VkShaderModule frag_shader_module_;
+
+		rhi::VulkanRHI& rhi_;
 	};
 }

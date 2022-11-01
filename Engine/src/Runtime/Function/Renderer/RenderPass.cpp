@@ -1,25 +1,45 @@
 #include "mlepch.h"
 #include "RenderPass.h"
+#include "Pipeline.h"
 #include "Runtime/Platform/Vulkan/VulkanRenderPass.h"
 #include "Runtime/Function/RHI/RHI.h"
 
 namespace renderer {
-	RenderPass* RenderPass::Create(const char* render_pass_name, const RenderPassDesc& desc,
-		const std::function<void(RenderPass*)>& setup,
-		const std::function<void(RenderPass*)>& exec)
+	RenderPass::~RenderPass()
 	{
-		rhi::RHI& rhi = rhi::RHI::GetRHIInstance();
-		return rhi.RHICreateRenderPass(render_pass_name, desc, setup, exec);
+		for (auto pipeline : pipelines_)
+		{
+			delete pipeline;
+		}
+		pipelines_.clear();
+
+		MLE_CORE_INFO("{0} pass has been deconstructed", pass_name_);
 	}
 
-	void RenderGraph::AddRenderPass(const char* render_pass_name, const RenderPassDesc& desc,
-		const std::function<void(RenderPass*)>& setup,
-		const std::function<void(RenderPass*)>& exec)
+	RenderPass* RenderPass::Create(const char* render_pass_name, const RenderPassDesc& desc,
+								   const std::function<void(RenderPass&, RenderTarget&)>& exec)
 	{
-		auto rp = RenderPass::Create(render_pass_name, desc, setup, exec);
-		render_passes_.emplace_back(rp);
-		
-		is_compiled_ = false;
+		rhi::RHI& rhi = rhi::RHI::GetRHIInstance();
+		return rhi.RHICreateRenderPass(render_pass_name, desc, exec);
+	}
+
+	Pipeline* RenderPass::CreatePipeline(const char* vert_path,
+									     const char* frag_path,
+										 const PipelineDesc& desc)
+	{
+		Pipeline* pipeline = Pipeline::Create(vert_path, frag_path, desc);
+		pipelines_.emplace_back(pipeline);
+		return pipeline;
+	}
+
+	RenderTarget* RenderTarget::Create(RenderPass& pass)
+	{
+		rhi::RHI& rhi = rhi::RHI::GetRHIInstance();
+		switch (rhi::RHI::GetAPI())
+		{
+		case rhi::RHI::GfxAPI::None: return 0;
+		case rhi::RHI::GfxAPI::Vulkan: return rhi.RHICreateRenderTarget(pass);
+		}
 	}
 
 	void RenderGraph::RemoveRenderPass(const char* render_pass_name)
@@ -45,18 +65,12 @@ namespace renderer {
 
 	void RenderGraph::Compile()
 	{
-		// temp
-		Setup();
-		
-		is_compiled_ = true;
-	}
-
-	void RenderGraph::Setup()
-	{
-		for (auto pass:render_passes_)
+		// TODO: topo sort
+		for (auto rp : render_passes_)
 		{
-			pass->Setup();
+			render_pass_path_.emplace_back(rp);
 		}
+		is_compiled_ = true;
 	}
 
 	void RenderGraph::Run()
@@ -64,9 +78,49 @@ namespace renderer {
 		if (!is_compiled_)
 			Compile();
 		// TEMP!!!!!!!!!!!!!!!!!!
+		
 		for (auto pass:render_passes_)
 		{
-			pass->Exec();
+			// TODO:Arena allocation
+			// Create the framebuffer for this pass
+			for (auto index : pass->GetRTDesc().attachments_index)
+			{
+				pass->GetRTDesc().attachments.emplace_back(resources_[index]->GetView());
+			}
+			if (pass->is_for_present_)
+			{
+				rhi::RHI& rhi = rhi::RHI::GetRHIInstance();
+				pass->GetRTDesc().attachments.emplace_back(rhi.GetNativeSwapchainImageView());
+				pass->GetRTDesc().width = rhi.GetViewportWidth();
+				pass->GetRTDesc().height = rhi.GetViewportHeight();
+			}
+			RenderTarget* rt = RenderTarget::Create(*pass);
+			pass->exec_func_(*pass,*rt);
+			rts_.emplace_back(rt);
+			pass->GetRTDesc().attachments.clear();
 		}
+	}
+
+	void RenderGraph::PostRun()
+	{
+		for (auto rt : rts_)
+		{
+			// Deconstructe framebuffer
+			delete rt;
+		}
+		rts_.clear();
+	}
+
+	uint32_t RenderGraph::RegisterResource(rhi::RHITexture2D* resource)
+	{
+		resources_.emplace_back(resource);
+		return resources_.size() - 1;
+	}
+
+	uint32_t RenderGraph::RegisterTransientResource()
+	{
+		rhi::RHITexture2D* resource;
+		resources_.emplace_back(resource);
+		return resources_.size() - 1;
 	}
 }

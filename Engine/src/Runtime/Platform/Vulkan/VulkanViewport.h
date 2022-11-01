@@ -20,6 +20,8 @@ namespace rhi {
 		void Destroy();
 
 		inline VulkanSwapChain* GetSwapChain() { return swap_chain_; }
+		uint32_t GetViewportWidth(); 
+		uint32_t GetViewportHeight();
 
 		void CreateWindowSurface();
 		void CreateSwapChain(VulkanSwapChainRecreateInfo* recreate_info);
