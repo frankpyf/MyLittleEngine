@@ -12,7 +12,7 @@ namespace engine {
 
 		virtual void OnUIRender() {}
 
-		virtual void OnUpdate() {}
+		virtual void OnUpdate(float delta_time) {}
 	};
 
 }

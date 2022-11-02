@@ -105,6 +105,9 @@ namespace engine {
 
 			if(!is_minimized_)
 			{
+				for (auto& layer : layer_stack_)
+					layer->OnUpdate(delta_time);
+
 				renderer_->Begin();
 				for (auto& layer : layer_stack_)
 					layer->OnUIRender();

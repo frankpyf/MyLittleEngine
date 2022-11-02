@@ -17,7 +17,7 @@ namespace renderer {
 	}
 
 	RenderPass* RenderPass::Create(const char* render_pass_name, const RenderPassDesc& desc,
-								   const std::function<void(RenderPass&, RenderTarget&)>& exec)
+								   void(*exec)(RenderPass& rp, RenderTarget& rt))
 	{
 		rhi::RHI& rhi = rhi::RHI::GetRHIInstance();
 		return rhi.RHICreateRenderPass(render_pass_name, desc, exec);
@@ -39,6 +39,17 @@ namespace renderer {
 		{
 		case rhi::RHI::GfxAPI::None: return 0;
 		case rhi::RHI::GfxAPI::Vulkan: return rhi.RHICreateRenderTarget(pass);
+		}
+	}
+
+	RenderPass& RenderGraph::GetRenderPass(const char* render_pass_name)
+	{
+		for (auto* pass : render_passes_)
+		{
+			if (pass->GetName() == render_pass_name)
+			{
+				return *pass;
+			}
 		}
 	}
 

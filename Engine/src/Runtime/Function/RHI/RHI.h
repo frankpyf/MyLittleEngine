@@ -62,7 +62,7 @@ namespace rhi{
         virtual std::shared_ptr<RHITexture2D> RHICreateTexture2D(uint32_t width, uint32_t height, PixelFormat in_format, uint32_t miplevels = 1) = 0;
         virtual std::shared_ptr<RHITexture2D> RHICreateTexture2D(std::string_view path, uint32_t miplevels = 1) = 0;
         virtual renderer::RenderPass* RHICreateRenderPass(const char* render_pass_name, const renderer::RenderPassDesc& desc,
-                                                          const std::function<void(renderer::RenderPass&, renderer::RenderTarget&)>& exec) = 0;
+                                                          void(*exec)(renderer::RenderPass& rp, renderer::RenderTarget& rt)) = 0;
         virtual renderer::RenderTarget* RHICreateRenderTarget(renderer::RenderPass& pass) = 0;
         virtual renderer::Pipeline* RHICreatePipeline(const char* vert_path,
                                                       const char* frag_path,

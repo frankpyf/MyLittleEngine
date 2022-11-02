@@ -123,7 +123,7 @@ namespace renderer {
 	{
 	public:
 		RenderPass(const char* render_pass_name, bool is_for_present,
-			const std::function<void(RenderPass&, RenderTarget&)>& exec)
+			void(*exec)(RenderPass& rp, RenderTarget& rt))
 			: pass_name_(render_pass_name), is_for_present_(is_for_present), exec_func_(exec) {};
 		virtual ~RenderPass();
 		const std::string& GetName() const { return pass_name_; }
@@ -136,9 +136,9 @@ namespace renderer {
 		Pipeline* GetPipeline(uint32_t index) { return pipelines_[index]; };
 
 		static RenderPass* Create(const char* render_pass_name, const RenderPassDesc& desc,
-								  const std::function<void(RenderPass&, RenderTarget&)>& exec);
-	
-		std::function<void(RenderPass&, RenderTarget&)> exec_func_;
+								  void(*exec)(RenderPass& rp, RenderTarget& rt));
+
+		void(*exec_func_)(RenderPass& rp, RenderTarget& rt);
 
 		bool is_for_present_ = false;
 	protected:
@@ -166,7 +166,7 @@ namespace renderer {
 		template <typename Setup>
 		void AddRenderPass(const char* render_pass_name, const RenderPassDesc& desc,
 			               const Setup& setup,
-						   const std::function<void(RenderPass&, RenderTarget&)>& exec)
+						   void(*exec)(RenderPass& rp, RenderTarget& rt))
 		{
 			auto rp = RenderPass::Create(render_pass_name, desc, exec);
 			setup(rp, rp->GetRTDesc());
@@ -174,6 +174,8 @@ namespace renderer {
 
 			is_compiled_ = false;
 		}
+
+		RenderPass& GetRenderPass(const char* render_pass_name);
 
 		void RemoveRenderPass(const char* render_pass_name);
 

@@ -25,7 +25,7 @@ namespace renderer {
 	{
 	public:
 		VulkanRenderPass(rhi::VulkanRHI& in_rhi, const char* render_pass_name, const RenderPassDesc& desc,
-			const std::function<void(RenderPass&, RenderTarget&)>& exec);
+			void(*exec)(RenderPass& rp, RenderTarget& rt));
 		virtual ~VulkanRenderPass();
 
 		virtual void* GetHandle() override { return (void*)render_pass_; };

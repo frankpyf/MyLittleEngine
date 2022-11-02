@@ -101,10 +101,10 @@ namespace renderer {
 		framebuffer_create_info.width = width_;
 		framebuffer_create_info.height = height_;
 		framebuffer_create_info.layers = 1;
-
-		if (vkCreateFramebuffer(rhi_.GetDevice()->GetDeviceHandle(), &framebuffer_create_info, nullptr, &framebuffer_) !=
-			VK_SUCCESS)
+		VkResult result = vkCreateFramebuffer(rhi_.GetDevice()->GetDeviceHandle(), &framebuffer_create_info, nullptr, &framebuffer_);
+		if (result != VK_SUCCESS)
 		{
+			MLE_CORE_ERROR("Failed to create framebuffer with error {0}", result);
 			throw std::runtime_error("failed to create framebuffer");
 		}
 	}
@@ -115,7 +115,7 @@ namespace renderer {
 	}
 
 	VulkanRenderPass::VulkanRenderPass(rhi::VulkanRHI& in_rhi, const char* render_pass_name, const RenderPassDesc& desc,
-		const std::function<void(RenderPass&, RenderTarget&)>& exec)
+		void(*exec)(RenderPass& rp, RenderTarget& rt))
 		:RenderPass(render_pass_name, desc.is_for_present, exec), rhi_(in_rhi)
 	{
 		CreateRenderPass(desc);

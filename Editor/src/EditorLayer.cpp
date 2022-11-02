@@ -42,12 +42,12 @@ namespace editor {
 
 						// Setup Dependencies between render passes
 					},
-					[=](auto& rp, RenderTarget& rt)
+					[](RenderPass& rp, RenderTarget& rt)
 					{
 						rhi::RHICommands::BeginRenderPass(rp, rt);
 						rhi::RHICommands::BindGfxPipeline(rp.GetPipeline(0));
-						rhi::RHICommands::SetViewport(0, 0, 800, 800);
-						rhi::RHICommands::SetScissor(0, 0, 800, 800);
+						rhi::RHICommands::SetViewport(0, 0, 1000, 800);
+						rhi::RHICommands::SetScissor(0, 0, 1000, 800);
 						rhi::RHICommands::Draw(3, 1);
 						rhi::RHICommands::EndRenderPass();
 					});
@@ -69,7 +69,7 @@ namespace editor {
 					{
 						rt.clear_value = { 0.0f,0.0f,0.0f,1.0f };
 					},
-					[=](auto& rp, RenderTarget& rt)
+					[](RenderPass& rp, RenderTarget& rt)
 					{
 						// Rendering
 						ImGui::Render();
@@ -97,6 +97,16 @@ namespace editor {
 	{
 		renderer::RenderGraph& render_graph_ = renderer::RenderGraph::GetInstance();
 		render_graph_.Clear();
+	}
+
+	void EditorLayer::OnUpdate(float delta_time)
+	{
+		// Resize
+		//if ( viewport_size_.x > 0.0f && viewport_size_.y > 0.0f && // zero sized framebuffer is invalid
+		//	(spec.Width != viewport_size_.x || spec.Height != viewport_size_.y))
+		//{
+		//	back_buffer_->Resize((uint32_t)viewport_size_.x, (uint32_t)viewport_size_.y);
+		//}
 	}
 
 	void EditorLayer::OnUIRender()

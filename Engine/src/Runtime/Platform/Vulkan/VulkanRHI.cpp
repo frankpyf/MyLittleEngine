@@ -443,7 +443,7 @@ namespace rhi {
 	}
 
 	renderer::RenderPass* VulkanRHI::RHICreateRenderPass(const char* render_pass_name, const renderer::RenderPassDesc& desc,
-		const std::function<void(renderer::RenderPass&, renderer::RenderTarget&)>& exec)
+		void(*exec)(renderer::RenderPass& rp, renderer::RenderTarget& rt))
 	{
 		return new renderer::VulkanRenderPass(*this, render_pass_name, desc, exec);
 	}
