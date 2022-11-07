@@ -85,12 +85,11 @@ namespace rhi {
         VulkanUtils::CreateLinearSampler((VkDevice)rhi_.GetNativeDevice(),
                                          (VkPhysicalDevice)rhi_.GetNativePhysicalDevice(),
                                           sampler_);
-
-        
     }
 
     void VulkanTexture2D::Release()
     {
+        rhi_.RHIBlockUntilGPUIdle();
         vkDestroySampler((VkDevice)rhi_.GetNativeDevice(), sampler_, nullptr);
         vkDestroyImageView((VkDevice)rhi_.GetNativeDevice(), image_view_, nullptr);
         vmaDestroyImage(rhi_.allocator_, image_, image_allocation_);
@@ -150,9 +149,12 @@ namespace rhi {
 
         VkImageUsageFlags usage;
         if (file_path_.empty())
-            usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+            usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
         else
             usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
         AllocateMemory(width_ * height_ * Utils::BytesPerPixel(format_), usage);
+
+        // Create the Descriptor Set:
+        descriptor_set_ = (VkDescriptorSet)ImGui_ImplVulkan_AddTexture(sampler_, image_view_, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 }

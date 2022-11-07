@@ -115,7 +115,7 @@ namespace renderer {
 	}
 
 	VulkanRenderPass::VulkanRenderPass(rhi::VulkanRHI& in_rhi, const char* render_pass_name, const RenderPassDesc& desc,
-		void(*exec)(RenderPass& rp, RenderTarget& rt))
+		EXEC_FUNC exec)
 		:RenderPass(render_pass_name, desc.is_for_present, exec), rhi_(in_rhi)
 	{
 		CreateRenderPass(desc);

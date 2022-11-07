@@ -1,5 +1,6 @@
 #pragma once
 #include "Runtime/Function/RHI/RHICommands.h"
+#include "FrameResource.h"
 
 namespace renderer {
 	class Renderer
@@ -19,7 +20,7 @@ namespace renderer {
 
 		void Shutdown();
 	private:
-
+		FrameResourceMngr frames_manager_;
 		bool is_frame_started_{ false };
 	};
 }

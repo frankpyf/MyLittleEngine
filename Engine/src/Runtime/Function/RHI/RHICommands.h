@@ -1,5 +1,6 @@
 #pragma once
 #include "RHI.h"
+#include "Runtime/Function/RHI/CommandBuffer.h"
 
 namespace rhi {
 	class RHICommands
@@ -9,58 +10,17 @@ namespace rhi {
 		{
 			rhi_.Init();
 		};
-		static void Begin()
+		
+		static void GfxQueueSubmit(rhi::CommandBuffer* cmd_buffer)
 		{
-			rhi_.Begin();
-		};
-		static void BeginRenderPass(renderer::RenderPass& pass,
-									renderer::RenderTarget& render_target)
-		{
-			rhi_.BeginRenderPass(pass, render_target);
-		};
-		static void BindGfxPipeline(renderer::Pipeline* pipeline)
-		{
-			rhi_.BindGfxPipeline(pipeline);
-		};
-		static void SetViewport(float x, float y, float width, float height, float min_depth = 0.0f, float max_depth = 1.0f) 
-		{
-			rhi_.SetViewport(x, y, width, height, min_depth, max_depth);
-		};
-		static void SetScissor(int32_t offset_x, int32_t offset_y, uint32_t width, uint32_t height)
-		{
-			rhi_.SetScissor(offset_x, offset_y, width, height);
-		};
-		static void Draw(uint32_t vertex_count, uint32_t instance_count)
-		{
-			rhi_.Draw(vertex_count, instance_count);
-		}
-		static void NextSubpass()
-		{
-
-		};
-		static void GfxQueueSubmit()
-		{
-			rhi_.GfxQueueSubmit();
+			rhi_.GfxQueueSubmit(cmd_buffer);
 		}
 		
-		static void EndRenderPass()
+		static void Present(void* semaphore)
 		{
-			rhi_.EndRenderPass();
-		};
-		static void End()
-		{
-			rhi_.End();
+			rhi_.Present(semaphore);
 		}
 
-		// Other commands
-		static void ImGui_ImplMLE_RenderDrawData(ImDrawData* draw_data)
-		{
-			rhi_.ImGui_ImplMLE_RenderDrawData(draw_data);
-		}
-		static void* GetCurrentFrame()
-		{
-			return rhi_.GetCurrentFrame();
-		}
 		static void* GetRHIInstance()
 		{
 			return rhi_.GetNativeInstance();

@@ -48,6 +48,7 @@ namespace engine {
 
 	void Application::Init()
 	{
+		renderer_ = new renderer::Renderer();
 		renderer_->Init();
 		for (auto layer : layer_stack_)
 			layer->OnAttach();
@@ -75,6 +76,7 @@ namespace engine {
 
 		// Cleanup
 		renderer_->Shutdown();
+		delete renderer_;
 
 		g_ApplicationRunning = false;
 	}

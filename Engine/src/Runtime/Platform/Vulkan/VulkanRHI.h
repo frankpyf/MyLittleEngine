@@ -2,7 +2,6 @@
 #include "Runtime/Function/RHI/RHI.h"
 #include "VulkanViewport.h"
 #include "VulkanDevice.h"
-#include "VulkanFrameResource.h"
 #include "Runtime/Core/Base/Singleton.h"
 
 #include "vk_mem_alloc.h"
@@ -27,38 +26,28 @@ namespace rhi {
         // @brief use static_cast<VkQueue>(...) to get the actual queue
         virtual void* GetNativeComputeQueue() override;
 
+        virtual void AcquireNextImage(void* semaphore) override;
         virtual void* GetNativeSwapchainImageView() override;
         virtual uint32_t GetViewportWidth() override;
         virtual uint32_t GetViewportHeight() override;
 
-        virtual void* GetCurrentFrame() override;
         virtual uint32_t GetGfxQueueFamily() override;
 
-        virtual void Begin() override;
-        virtual void BeginRenderPass(renderer::RenderPass& pass,
-                                     renderer::RenderTarget& render_target) override;
-        virtual void BindGfxPipeline(renderer::Pipeline* pipeline) override;
-        virtual void SetViewport( float x, float y, float width, float height, float min_depth, float max_depth) override;
-        virtual void SetScissor(int32_t offset_x, int32_t offset_y, uint32_t width, uint32_t height) override;
-        virtual void Draw(uint32_t vertex_count, uint32_t instance_count) override;
-
-        virtual void NextSubpass() override;
-
-        virtual void GfxQueueSubmit() override;
+        virtual void GfxQueueSubmit(CommandBuffer* cmd_buffer) override;
         virtual void ComputeQueueSubmit() override;
         virtual void TransferQueueSubmit()override;
-        virtual void EndRenderPass() override;
-        virtual void End() override;
+        
+        virtual void Present(void* semaphore) override;
 
+        virtual CommandBuffer* RHICreateCommandBuffer() override;
         virtual std::shared_ptr<RHITexture2D> RHICreateTexture2D(uint32_t width, uint32_t height, PixelFormat in_format, uint32_t miplevels = 1) override;
         virtual std::shared_ptr<RHITexture2D> RHICreateTexture2D(std::string_view path, uint32_t miplevels = 1) override;
         virtual renderer::RenderPass*         RHICreateRenderPass(const char* render_pass_name, const renderer::RenderPassDesc& desc,
-                                                                  void(*exec)(renderer::RenderPass& rp, renderer::RenderTarget& rt)) override;
+                                                                  renderer::RenderPass::EXEC_FUNC exec) override;
         virtual renderer::RenderTarget* RHICreateRenderTarget(renderer::RenderPass& pass) override;
         virtual renderer::Pipeline*     RHICreatePipeline(const char* vert_path,
                                                           const char* frag_path,
                                                           const renderer::PipelineDesc& desc) override;
-        virtual void ImGui_ImplMLE_RenderDrawData(ImDrawData* draw_data) override;
 
         void RHITick(float delta_time) override;
         void RHIBlockUntilGPUIdle() override;
@@ -85,7 +74,5 @@ namespace rhi {
         VulkanDevice* device_ = nullptr;
 
         VulkanViewport* viewport_ = nullptr;
-
-        VulkanFrameResourceManager* frame_manager_;
     };
 }

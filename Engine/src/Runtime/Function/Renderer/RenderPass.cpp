@@ -1,8 +1,10 @@
 #include "mlepch.h"
+#include "FrameResource.h"
 #include "RenderPass.h"
 #include "Pipeline.h"
 #include "Runtime/Platform/Vulkan/VulkanRenderPass.h"
 #include "Runtime/Function/RHI/RHI.h"
+#include "Runtime/Function/RHI/CommandBuffer.h"
 
 namespace renderer {
 	RenderPass::~RenderPass()
@@ -17,7 +19,7 @@ namespace renderer {
 	}
 
 	RenderPass* RenderPass::Create(const char* render_pass_name, const RenderPassDesc& desc,
-								   void(*exec)(RenderPass& rp, RenderTarget& rt))
+									EXEC_FUNC exec)
 	{
 		rhi::RHI& rhi = rhi::RHI::GetRHIInstance();
 		return rhi.RHICreateRenderPass(render_pass_name, desc, exec);
@@ -84,12 +86,14 @@ namespace renderer {
 		is_compiled_ = true;
 	}
 
-	void RenderGraph::Run()
+	void RenderGraph::Run(FrameResource& resource)
 	{
 		if (!is_compiled_)
 			Compile();
 		// TEMP!!!!!!!!!!!!!!!!!!
 		
+		auto& cmd_buffer = resource.command_buffer_;
+		auto& rts = resource.render_targets_;
 		for (auto pass:render_passes_)
 		{
 			// TODO:Arena allocation
@@ -97,7 +101,10 @@ namespace renderer {
 			for (auto index : pass->GetRTDesc().attachments_index)
 			{
 				pass->GetRTDesc().attachments.emplace_back(resources_[index]->GetView());
+				pass->GetRTDesc().width = resources_[index]->GetWidth();
+				pass->GetRTDesc().height = resources_[index]->GetHeight();
 			}
+
 			if (pass->is_for_present_)
 			{
 				rhi::RHI& rhi = rhi::RHI::GetRHIInstance();
@@ -106,20 +113,15 @@ namespace renderer {
 				pass->GetRTDesc().height = rhi.GetViewportHeight();
 			}
 			RenderTarget* rt = RenderTarget::Create(*pass);
-			pass->exec_func_(*pass,*rt);
-			rts_.emplace_back(rt);
+			pass->exec_func_(*pass,*rt, *cmd_buffer);
 			pass->GetRTDesc().attachments.clear();
+			rts.emplace_back(rt);
 		}
 	}
 
 	void RenderGraph::PostRun()
 	{
-		for (auto rt : rts_)
-		{
-			// Deconstructe framebuffer
-			delete rt;
-		}
-		rts_.clear();
+		
 	}
 
 	uint32_t RenderGraph::RegisterResource(rhi::RHITexture2D* resource)
