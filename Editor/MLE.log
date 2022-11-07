@@ -1,30 +1,34 @@
-[2022-11-07 20:40:40.023] [Core] [info] Engine running
-[2022-11-07 20:40:41.412] [Core] [info] Found 2 device(s)
-[2022-11-07 20:40:41.412] [Core] [info] device is: NVIDIA GeForce RTX 2060
-[2022-11-07 20:40:41.413] [Core] [info] Found 3 Queue Families
-[2022-11-07 20:40:41.413] [Core] [info] Initializing Gfx Queue with Queue family 0 which has 16 queues
-[2022-11-07 20:40:41.413] [Core] [info] Initializing Transfer Queue with Queue family 1 which has 2 queues
-[2022-11-07 20:40:41.414] [Core] [info] Initializing Compute Queue with Queue family 2 which has 8 queues
-[2022-11-07 20:40:41.728] [Core] [info] Logical Device is created from: NVIDIA GeForce RTX 2060
-[2022-11-07 20:40:41.731] [Core] [info] Global descriptor pool has been created!
-[2022-11-07 20:40:41.731] [Core] [info] VMA allocator created
-[2022-11-07 20:40:41.774] [Core] [info] Present mode: Mailbox
-[2022-11-07 20:40:41.774] [Core] [info] This swapchain supports at least 3 image(s)
-[2022-11-07 20:40:41.774] [Core] [info] Queue Family 0: Supports Present
-[2022-11-07 20:40:41.775] [Core] [info] Queue Family 2: Supports Present
-[2022-11-07 20:40:41.775] [Core] [info] Present Queue family index: 2
-[2022-11-07 20:40:42.274] [Core] [info] Swapchain created with 3 image(s)
-[2022-11-07 20:40:42.283] [Core] [info] Vulkan Render Pass has been created
-[2022-11-07 20:40:42.285] [Core] [info] Vulkan Render Pass has been created
-[2022-11-07 20:40:47.040] [APP] [info] mouse pressed: 0
-[2022-11-07 20:40:47.413] [APP] [info] mouse released: 0
-[2022-11-07 20:40:48.313] [APP] [info] mouse pressed: 0
-[2022-11-07 20:40:49.010] [APP] [info] mouse released: 0
-[2022-11-07 20:40:49.688] [APP] [info] mouse pressed: 0
-[2022-11-07 20:40:49.762] [APP] [info] mouse released: 0
-[2022-11-07 20:40:50.218] [APP] [info] mouse pressed: 0
-[2022-11-07 20:40:50.306] [APP] [info] mouse released: 0
-[2022-11-07 20:40:50.308] [Core] [info] Triangle Pass pass has been deconstructed
-[2022-11-07 20:40:50.308] [Core] [info] Present & UI Pass pass has been deconstructed
-[2022-11-07 20:40:50.346] [Core] [info] device has been destroyed
-[2022-11-07 20:40:51.640] [Core] [info] Vulkan RHI has been shut down
+[2022-11-07 20:46:44.710] [Core] [info] Engine running
+[2022-11-07 20:46:46.031] [Core] [info] Found 2 device(s)
+[2022-11-07 20:46:46.033] [Core] [info] device is: NVIDIA GeForce RTX 2060
+[2022-11-07 20:46:46.033] [Core] [info] Found 3 Queue Families
+[2022-11-07 20:46:46.033] [Core] [info] Initializing Gfx Queue with Queue family 0 which has 16 queues
+[2022-11-07 20:46:46.033] [Core] [info] Initializing Transfer Queue with Queue family 1 which has 2 queues
+[2022-11-07 20:46:46.034] [Core] [info] Initializing Compute Queue with Queue family 2 which has 8 queues
+[2022-11-07 20:46:46.409] [Core] [info] Logical Device is created from: NVIDIA GeForce RTX 2060
+[2022-11-07 20:46:46.411] [Core] [info] Global descriptor pool has been created!
+[2022-11-07 20:46:46.412] [Core] [info] VMA allocator created
+[2022-11-07 20:46:46.458] [Core] [info] Present mode: Mailbox
+[2022-11-07 20:46:46.461] [Core] [info] This swapchain supports at least 3 image(s)
+[2022-11-07 20:46:46.462] [Core] [info] Queue Family 0: Supports Present
+[2022-11-07 20:46:46.463] [Core] [info] Queue Family 2: Supports Present
+[2022-11-07 20:46:46.464] [Core] [info] Present Queue family index: 2
+[2022-11-07 20:46:47.176] [Core] [info] Swapchain created with 3 image(s)
+[2022-11-07 20:46:47.178] [Core] [info] Vulkan Render Pass has been created
+[2022-11-07 20:46:47.179] [Core] [info] Vulkan Render Pass has been created
+[2022-11-07 20:46:50.990] [APP] [info] mouse pressed: 0
+[2022-11-07 20:46:51.322] [APP] [info] mouse released: 0
+[2022-11-07 20:46:51.739] [APP] [info] mouse pressed: 0
+[2022-11-07 20:46:51.975] [APP] [info] mouse released: 0
+[2022-11-07 20:46:52.115] [APP] [info] mouse pressed: 0
+[2022-11-07 20:46:52.212] [APP] [info] mouse released: 0
+[2022-11-07 20:46:55.581] [APP] [info] mouse pressed: 0
+[2022-11-07 20:46:57.891] [APP] [info] mouse released: 0
+[2022-11-07 20:46:59.662] [APP] [info] mouse pressed: 0
+[2022-11-07 20:47:01.337] [APP] [info] mouse released: 0
+[2022-11-07 20:47:01.945] [APP] [info] mouse pressed: 0
+[2022-11-07 20:47:02.450] [APP] [info] mouse released: 0
+[2022-11-07 20:47:31.659] [Core] [info] Triangle Pass pass has been deconstructed
+[2022-11-07 20:47:31.659] [Core] [info] Present & UI Pass pass has been deconstructed
+[2022-11-07 20:47:31.703] [Core] [info] device has been destroyed
+[2022-11-07 20:47:33.001] [Core] [info] Vulkan RHI has been shut down
