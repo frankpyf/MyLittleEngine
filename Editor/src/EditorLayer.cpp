@@ -2,8 +2,6 @@
 #include "EditorLayer.h"
 #include "Runtime/Core/Base/Layer.h"
 
-#include "backends/imgui_impl_vulkan.h"
-
 namespace editor {
 	void EditorLayer::OnAttach()
 	{
@@ -31,8 +29,6 @@ namespace editor {
 					[&](RenderPass* rp, RenderTargetDesc& rt)
 					{
 						rt.attachments_index.push_back(back_buffer_handle);
-						rt.width = (*back_buffer_).GetWidth();
-						rt.height = (*back_buffer_).GetHeight();
 						rt.clear_value = { 0.0f,0.0f,0.0f,1.0f };
 
 						PipelineDesc PSODesc{};
@@ -42,14 +38,14 @@ namespace editor {
 
 						// Setup Dependencies between render passes
 					},
-					[=](auto& rp, RenderTarget& rt)
+					[&](RenderPass& rp, RenderTarget& rt, rhi::CommandBuffer& cmd_buffer)
 					{
-						rhi::RHICommands::BeginRenderPass(rp, rt);
-						rhi::RHICommands::BindGfxPipeline(rp.GetPipeline(0));
-						rhi::RHICommands::SetViewport(0, 0, 800, 800);
-						rhi::RHICommands::SetScissor(0, 0, 800, 800);
-						rhi::RHICommands::Draw(3, 1);
-						rhi::RHICommands::EndRenderPass();
+						BeginRenderPass(cmd_buffer, rp, rt);
+						BindGfxPipeline(cmd_buffer, rp.GetPipeline(0));
+						SetViewport(cmd_buffer, 0, 0, back_buffer_->GetWidth(), back_buffer_->GetHeight());
+						SetScissor(cmd_buffer, 0, 0, back_buffer_->GetWidth(), back_buffer_->GetHeight());
+						Draw(cmd_buffer, 3, 1);
+						EndRenderPass(cmd_buffer);
 					});
 			}
 		
@@ -69,7 +65,7 @@ namespace editor {
 					{
 						rt.clear_value = { 0.0f,0.0f,0.0f,1.0f };
 					},
-					[=](auto& rp, RenderTarget& rt)
+					[](RenderPass& rp, RenderTarget& rt, rhi::CommandBuffer& cmd_buffer)
 					{
 						// Rendering
 						ImGui::Render();
@@ -77,10 +73,10 @@ namespace editor {
 						const bool main_is_minimized = (main_draw_data->DisplaySize.x <= 0.0f || main_draw_data->DisplaySize.y <= 0.0f);
 						if (!main_is_minimized)
 						{
-							rhi::RHICommands::BeginRenderPass(rp, rt);
+							BeginRenderPass(cmd_buffer, rp, rt);
 							// Record dear imgui primitives into command buffer
-							rhi::RHICommands::ImGui_ImplMLE_RenderDrawData(main_draw_data);
-							rhi::RHICommands::EndRenderPass();
+							ImGui_RenderDrawData(cmd_buffer, main_draw_data);
+							EndRenderPass(cmd_buffer);
 						}
 						ImGuiIO& io = ImGui::GetIO(); (void)io;
 						if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
@@ -97,6 +93,16 @@ namespace editor {
 	{
 		renderer::RenderGraph& render_graph_ = renderer::RenderGraph::GetInstance();
 		render_graph_.Clear();
+	}
+
+	void EditorLayer::OnUpdate(float delta_time)
+	{
+		// Resize
+		if ( viewport_size_.x > 0.0f && viewport_size_.y > 0.0f && // zero sized framebuffer is invalid
+			(back_buffer_->GetWidth() != viewport_size_.x || back_buffer_->GetHeight() != viewport_size_.y))
+		{
+			back_buffer_->Resize((uint32_t)viewport_size_.x, (uint32_t)viewport_size_.y);
+		}
 	}
 
 	void EditorLayer::OnUIRender()
@@ -185,7 +191,7 @@ namespace editor {
 		ImGui::Begin("Viewport");
 
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-		/*m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };*/
+		viewport_size_ = { viewportPanelSize.x, viewportPanelSize.y };
 
 		ImGui::Image((ImTextureID)back_buffer_->GetTextureID(), ImVec2{ (float)back_buffer_->GetWidth(), (float)back_buffer_->GetHeight()}, ImVec2{0, 1}, ImVec2{1, 0});
 

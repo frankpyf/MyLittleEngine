@@ -6,5 +6,7 @@
 // Renderer stuff
 #include "Runtime/Function/Renderer/RenderPass.h"
 #include "Runtime/Function/Renderer/Pipeline.h"
+#include "Runtime/Function/Renderer/RenderCommands.h"
+
 #include "Runtime/Function/RHI/RHIResource.h"
 #include "Runtime/Function/RHI/RHICommands.h"

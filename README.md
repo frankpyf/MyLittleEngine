@@ -12,10 +12,10 @@ Example code
 ```C++
 // Delcare Resource
 auto color_buffer = render_graph.RegisterTransientResource();
-back_buffer_ = rhi.RHICreateTexture2D(1000,800,rhi::PixelFormat::RGBA);
-auto back_buffer_handle = render_graph.RegisterResource(back_buffer_.get());
+ back_buffer_ = rhi.RHICreateTexture2D(1000,800,rhi::PixelFormat::RGBA);
+ auto back_buffer_handle = render_graph.RegisterResource(back_buffer_.get());
 
-// Triangle Pass
+ // Triangle Pass
 {
 	RenderPassDesc tri_pass{};
 	ColorAttachmentDesc& color = tri_pass.color_attachments.emplace_back();
@@ -26,31 +26,29 @@ auto back_buffer_handle = render_graph.RegisterResource(back_buffer_.get());
 
 	tri_pass.subpasses.push_back({ false, {0},{}});
 	render_graph.AddRenderPass("Triangle Pass", tri_pass,
-	[&](RenderPass* rp, RenderTargetDesc& rt)
-	{
-		rt.attachments_index.push_back(back_buffer_handle);
-		rt.width = (*back_buffer_).GetWidth();
-		rt.height = (*back_buffer_).GetHeight();
-		rt.clear_value = { 0.0f,0.0f,0.0f,1.0f };
+		[&](RenderPass* rp, RenderTargetDesc& rt)
+		{
+			rt.attachments_index.push_back(back_buffer_handle);
+			rt.clear_value = { 0.0f,0.0f,0.0f,1.0f };
 
-		PipelineDesc PSODesc{};
-		PSODesc.render_pass = rp;
-		PSODesc.subpass = 0;
-		rp->CreatePipeline("asset/shaders/vert.spv", "asset/shaders/frag.spv", PSODesc);
+			PipelineDesc PSODesc{};
+			PSODesc.render_pass = rp;
+			PSODesc.subpass = 0;
+			rp->CreatePipeline("asset/shaders/vert.spv", "asset/shaders/frag.spv", PSODesc);
 
-		// Setup Dependencies between render passes
-	},
-	[=](auto& rp, RenderTarget& rt)
-	{
-		rhi::RHICommands::BeginRenderPass(rp, rt);
-		rhi::RHICommands::BindGfxPipeline(rp.GetPipeline(0));
-		rhi::RHICommands::SetViewport(0, 0, 800, 800);
-		rhi::RHICommands::SetScissor(0, 0, 800, 800);
-		rhi::RHICommands::Draw(3, 1);
-		rhi::RHICommands::EndRenderPass();
-	});
+			// Setup Dependencies between render passes
+		},
+		[&](RenderPass& rp, RenderTarget& rt, rhi::CommandBuffer& cmd_buffer)
+		{
+			BeginRenderPass(cmd_buffer, rp, rt);
+			BindGfxPipeline(cmd_buffer, rp.GetPipeline(0));
+			SetViewport(cmd_buffer, 0, 0, back_buffer_->GetWidth(), back_buffer_->GetHeight());
+			SetScissor(cmd_buffer, 0, 0, back_buffer_->GetWidth(), back_buffer_->GetHeight());
+			Draw(cmd_buffer, 3, 1);
+			EndRenderPass(cmd_buffer);
+		});
 }
-		
+
 // Present Pass
 {
 	RenderPassDesc present_pass{};
@@ -63,30 +61,30 @@ auto back_buffer_handle = render_graph.RegisterResource(back_buffer_.get());
 	color.format = AttachmentFormat::SWAPCHAIN_FORMAT;
 	present_pass.subpasses.push_back({ false, {0},{} });
 	render_graph.AddRenderPass("Present & UI Pass", present_pass,
-	[=](RenderPass* rp, RenderTargetDesc& rt)
-	{
-		rt.clear_value = { 0.0f,0.0f,0.0f,1.0f };
-	},
-	[=](auto& rp, RenderTarget& rt)
-	{
-		// Rendering
-		ImGui::Render();
-		ImDrawData* main_draw_data = ImGui::GetDrawData();
-		const bool main_is_minimized = (main_draw_data->DisplaySize.x <= 0.0f || main_draw_data->DisplaySize.y <= 0.0f);
-		if (!main_is_minimized)
+		[=](RenderPass* rp, RenderTargetDesc& rt)
 		{
-			rhi::RHICommands::BeginRenderPass(rp, rt);
-			// Record dear imgui primitives into command buffer
-			rhi::RHICommands::ImGui_ImplMLE_RenderDrawData(main_draw_data);
-			rhi::RHICommands::EndRenderPass();
-		}
-		ImGuiIO& io = ImGui::GetIO(); (void)io;
-		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+			rt.clear_value = { 0.0f,0.0f,0.0f,1.0f };
+		},
+		[](RenderPass& rp, RenderTarget& rt, rhi::CommandBuffer& cmd_buffer)
 		{
-			ImGui::UpdatePlatformWindows();
-			ImGui::RenderPlatformWindowsDefault();
-		}
-	});
+			// Rendering
+			ImGui::Render();
+			ImDrawData* main_draw_data = ImGui::GetDrawData();
+			const bool main_is_minimized = (main_draw_data->DisplaySize.x <= 0.0f || main_draw_data->DisplaySize.y <= 0.0f);
+			if (!main_is_minimized)
+			{
+				BeginRenderPass(cmd_buffer, rp, rt);
+				// Record dear imgui primitives into command buffer
+				ImGui_RenderDrawData(cmd_buffer, main_draw_data);
+				EndRenderPass(cmd_buffer);
+			}
+			ImGuiIO& io = ImGui::GetIO(); (void)io;
+			if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+			{
+				ImGui::UpdatePlatformWindows();
+				ImGui::RenderPlatformWindowsDefault();
+			}
+		});
 }
 ```
 This is what it looks like(btw why imgui is kinda gray, still trying to figure it out): 

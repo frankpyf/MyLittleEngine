@@ -4,15 +4,16 @@
 #include "VulkanRenderPass.h"
 #include "VulkanPipeline.h"
 #include "VulkanResource.h"
-
-#include "backends/imgui_impl_glfw.h"
-#include "backends/imgui_impl_vulkan.h"
+#include "VulkanCommandBuffer.h"
 
 #include <vector>
 #include <GLFW/glfw3.h>
 #include "Runtime/Core/Base/Log.h"
 #include "Runtime/Core/Base/Application.h"
 #include "Runtime/Core/Window.h"
+
+#include "backends/imgui_impl_vulkan.h"
+#include "backends/imgui_impl_glfw.h"
 
 #ifdef MLE_DEBUG
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_report(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData)
@@ -46,9 +47,6 @@ namespace rhi {
 		engine::Application& app = engine::Application::GetApp();
 		GLFWwindow* window = static_cast<GLFWwindow*>(app.GetWindow().GetNativeWindow());
 		viewport_ = new VulkanViewport(this, device_, &app.GetWindow());
-
-		frame_manager_ = new VulkanFrameResourceManager(*this);
-		frame_manager_->CreateFrames();
 	}
 
 
@@ -61,7 +59,6 @@ namespace rhi {
 		ImGui::DestroyContext();
 
 		vmaDestroyAllocator(allocator_);
-		frame_manager_->DestroyFrames();
 
 		viewport_->Destroy();
 #ifdef MLE_DEBUG
@@ -287,6 +284,12 @@ namespace rhi {
 		return (void*)device_->GetComputeQueue()->GetQueueHandle();
 	}
 
+	void VulkanRHI::AcquireNextImage(void* semaphore)
+	{
+		VkSemaphore image_acquired_semaphore = (VkSemaphore)semaphore;
+		viewport_->AcquireNextImage(image_acquired_semaphore);
+	}
+
 	void* VulkanRHI::GetNativeSwapchainImageView()
 	{
 		uint32_t index = viewport_->GetAccquiredIndex();
@@ -303,102 +306,14 @@ namespace rhi {
 		return viewport_->GetViewportHeight();
 	}
 
-	void* VulkanRHI::GetCurrentFrame()
-	{
-		return (void*)frame_manager_->GetActiveFrame();
-	}
-
 	uint32_t VulkanRHI::GetGfxQueueFamily()
 	{
 		return device_->GetGfxQueue()->GetFamilyIndex();
 	}
 
-	void VulkanRHI::Begin()
+	void VulkanRHI::GfxQueueSubmit(CommandBuffer* cmd_buffer)
 	{
-		VulkanFrameResource* frame = frame_manager_->BeginFrame();
-
-		viewport_->AcquireNextImage(frame->GetImageAcquireSemaphore());
-
-		VkCommandBufferBeginInfo begin_info{};
-		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		begin_info.flags = 0; // Optional
-		begin_info.pInheritanceInfo = nullptr; // Optional
-
-		if (vkBeginCommandBuffer(frame->GetCommandBuffer(), &begin_info) != VK_SUCCESS)
-		{
-			throw std::runtime_error("failed to begin recording command buffer!");
-		}
-
-		// Start the Dear ImGui frame
-		ImGui_ImplVulkan_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-	}
-
-	void VulkanRHI::BeginRenderPass(renderer::RenderPass& pass,
-									renderer::RenderTarget& render_target)
-	{
-		VkClearValue clear_color{};
-		clear_color.color.float32[0] = render_target.GetClearColor().r * render_target.GetClearColor().a;
-		clear_color.color.float32[1] = render_target.GetClearColor().g * render_target.GetClearColor().a;
-		clear_color.color.float32[2] = render_target.GetClearColor().b * render_target.GetClearColor().a;
-		clear_color.color.float32[3] = render_target.GetClearColor().a;
-
-		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
-		VkRenderPassBeginInfo info = {};
-		info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		info.renderPass = (VkRenderPass)pass.GetHandle();
-		info.framebuffer = (VkFramebuffer)render_target.GetHandle();
-		info.renderArea.extent.width = render_target.GetWidth();
-		info.renderArea.extent.height = render_target.GetHeight();
-		// temp
-		info.clearValueCount = 2;
-		info.pClearValues = &clear_color;
-		vkCmdBeginRenderPass(frame->GetCommandBuffer(), &info, VK_SUBPASS_CONTENTS_INLINE);
-	}
-
-	void VulkanRHI::BindGfxPipeline(renderer::Pipeline* pipeline)
-	{
-		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
-		vkCmdBindPipeline(frame->GetCommandBuffer(),VK_PIPELINE_BIND_POINT_GRAPHICS,(VkPipeline)pipeline->GetHandle());
-	}
-	void VulkanRHI::SetViewport(float x, float y, float width, float height, float min_depth, float max_depth)
-	{
-		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
-		VkViewport viewport{};
-		viewport.x = x;
-		viewport.y = y;
-		viewport.width = width;
-		viewport.height = height;
-		viewport.minDepth = min_depth;
-		viewport.maxDepth = max_depth;
-		vkCmdSetViewport(frame->GetCommandBuffer(), 0, 1, &viewport);
-	}
-
-	void VulkanRHI::SetScissor(int32_t offset_x, int32_t offset_y, uint32_t width, uint32_t height)
-	{
-		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
-		VkRect2D scissor{ {offset_x, offset_y}, {width, height} };
-		vkCmdSetScissor(frame->GetCommandBuffer(), 0, 1, &scissor);
-	}
-
-	void VulkanRHI::Draw(uint32_t vertex_count,uint32_t instance_count)
-	{
-		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
-		// temp
-		vkCmdDraw(frame->GetCommandBuffer(), vertex_count, instance_count, 0, 0);
-	}
-
-	void VulkanRHI::NextSubpass()
-	{
-		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
-		vkCmdNextSubpass(frame->GetCommandBuffer(), VK_SUBPASS_CONTENTS_INLINE);
-	}
-
-	void VulkanRHI::GfxQueueSubmit()
-	{
-		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
-		device_->GetGfxQueue()->Submit(*frame);
+		device_->GetGfxQueue()->Submit(cmd_buffer);
 	}
 
 	void VulkanRHI::ComputeQueueSubmit()
@@ -411,25 +326,14 @@ namespace rhi {
 
 	}
 
-	void VulkanRHI::EndRenderPass()
+	void VulkanRHI::Present(void* semaphore)
 	{
-		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
-		vkCmdEndRenderPass(frame->GetCommandBuffer());
+		viewport_->Present((VkSemaphore)semaphore);
 	}
 
-	void VulkanRHI::End()
+	CommandBuffer* VulkanRHI::RHICreateCommandBuffer()
 	{
-		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
-		vkEndCommandBuffer(frame->GetCommandBuffer());
-		GfxQueueSubmit();
-		viewport_->Present(frame->GetRenderFinishedSemaphore());
-		vkDeviceWaitIdle(device_->GetDeviceHandle());
-	}
-
-	void VulkanRHI::ImGui_ImplMLE_RenderDrawData(ImDrawData* draw_data)
-	{
-		VulkanFrameResource* frame = frame_manager_->GetActiveFrame();
-		ImGui_ImplVulkan_RenderDrawData(draw_data, frame->GetCommandBuffer());
+		return new VulkanCommandBuffer(device_);
 	}
 
 	std::shared_ptr<RHITexture2D> VulkanRHI::RHICreateTexture2D(uint32_t width, uint32_t height, PixelFormat in_format, uint32_t miplevels)
@@ -443,7 +347,7 @@ namespace rhi {
 	}
 
 	renderer::RenderPass* VulkanRHI::RHICreateRenderPass(const char* render_pass_name, const renderer::RenderPassDesc& desc,
-		const std::function<void(renderer::RenderPass&, renderer::RenderTarget&)>& exec)
+														 renderer::RenderPass::EXEC_FUNC exec)
 	{
 		return new renderer::VulkanRenderPass(*this, render_pass_name, desc, exec);
 	}
@@ -455,7 +359,7 @@ namespace rhi {
 														 const char* frag_path,
 														 const renderer::PipelineDesc& desc)
 	{
-		return new renderer::VulkanPipeline(*this, vert_path, frag_path, desc);
+		return new renderer::VulkanPipeline(device_, vert_path, frag_path, desc);
 	}
 
 }

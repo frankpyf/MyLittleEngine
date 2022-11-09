@@ -4,11 +4,11 @@
 #include "Runtime/Function/Renderer/RenderPass.h"
 
 namespace renderer {
-	VulkanPipeline::VulkanPipeline(rhi::VulkanRHI& in_rhi,
+	VulkanPipeline::VulkanPipeline(rhi::VulkanDevice* in_device,
 								   const char* vert_path,
 								   const char* frag_path,
 								   const PipelineDesc& desc)
-		:rhi_(in_rhi)
+		:device_(in_device)
 	{
 		assert(
 			desc.render_pass != nullptr &&
@@ -29,10 +29,10 @@ namespace renderer {
 
 	void VulkanPipeline::DestroyPipeline()
 	{
-		vkDestroyShaderModule(rhi_.GetDevice()->GetDeviceHandle(), vert_shader_module_, nullptr);
-		vkDestroyShaderModule(rhi_.GetDevice()->GetDeviceHandle(), frag_shader_module_, nullptr);
-		vkDestroyPipelineLayout(rhi_.GetDevice()->GetDeviceHandle(), pipeline_layout_, nullptr);
-		vkDestroyPipeline(rhi_.GetDevice()->GetDeviceHandle(), pipeline_, nullptr);
+		vkDestroyShaderModule(device_->GetDeviceHandle(), vert_shader_module_, nullptr);
+		vkDestroyShaderModule(device_->GetDeviceHandle(), frag_shader_module_, nullptr);
+		vkDestroyPipelineLayout(device_->GetDeviceHandle(), pipeline_layout_, nullptr);
+		vkDestroyPipeline(device_->GetDeviceHandle(), pipeline_, nullptr);
 	}
 
 	std::vector<char> VulkanPipeline::ReadFile(const char* file_path)
@@ -166,7 +166,7 @@ namespace renderer {
 		pipelineLayoutInfo.setLayoutCount = 0;
 		pipelineLayoutInfo.pushConstantRangeCount = 0;
 
-		if (vkCreatePipelineLayout(rhi_.GetDevice()->GetDeviceHandle(), &pipelineLayoutInfo, nullptr, &pipeline_layout_) != VK_SUCCESS) {
+		if (vkCreatePipelineLayout(device_->GetDeviceHandle(), &pipelineLayoutInfo, nullptr, &pipeline_layout_) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create pipeline layout!");
 		}
 
@@ -191,7 +191,7 @@ namespace renderer {
 		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
 		if (vkCreateGraphicsPipelines(
-			rhi_.GetDevice()->GetDeviceHandle(),
+			device_->GetDeviceHandle(),
 			VK_NULL_HANDLE,
 			1,
 			&pipelineInfo,
@@ -210,7 +210,7 @@ namespace renderer {
 		shader_module_create_info.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
 		VkResult result;
-		result = vkCreateShaderModule(rhi_.GetDevice()->GetDeviceHandle(), &shader_module_create_info, nullptr, shader_module);
+		result = vkCreateShaderModule(device_->GetDeviceHandle(), &shader_module_create_info, nullptr, shader_module);
 		if (result != VK_SUCCESS)
 		{
 			MLE_CORE_ERROR("Failed to create ShaderModule");

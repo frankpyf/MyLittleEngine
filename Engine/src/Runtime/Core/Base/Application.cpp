@@ -48,6 +48,7 @@ namespace engine {
 
 	void Application::Init()
 	{
+		renderer_ = new renderer::Renderer();
 		renderer_->Init();
 		for (auto layer : layer_stack_)
 			layer->OnAttach();
@@ -75,6 +76,7 @@ namespace engine {
 
 		// Cleanup
 		renderer_->Shutdown();
+		delete renderer_;
 
 		g_ApplicationRunning = false;
 	}
@@ -105,6 +107,9 @@ namespace engine {
 
 			if(!is_minimized_)
 			{
+				for (auto& layer : layer_stack_)
+					layer->OnUpdate(delta_time);
+
 				renderer_->Begin();
 				for (auto& layer : layer_stack_)
 					layer->OnUIRender();

@@ -3,13 +3,13 @@
 #include "vk_mem_alloc.h"
 #include "Runtime/Function/Renderer/Pipeline.h"
 namespace rhi {
-	class VulkanRHI;
+	class VulkanDevice;
 }
 namespace renderer {
 	class VulkanPipeline : public Pipeline
 	{
 	public:
-		VulkanPipeline(rhi::VulkanRHI& in_rhi,
+		VulkanPipeline(rhi::VulkanDevice* in_device,
 					   const char* vert_path,
 					   const char* frag_path,
 					   const PipelineDesc& desc);
@@ -35,6 +35,6 @@ namespace renderer {
 		VkShaderModule vert_shader_module_;
 		VkShaderModule frag_shader_module_;
 
-		rhi::VulkanRHI& rhi_;
+		rhi::VulkanDevice* device_;
 	};
 }

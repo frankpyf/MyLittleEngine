@@ -1,14 +1,17 @@
 #pragma once
 #include "Runtime/Core/Base/Singleton.h"
 #include <glm/glm.hpp>
+
 namespace rhi {
 	class RHITexture2D;
+	class CommandBuffer;
 }
 
 namespace renderer {
 	// forward declaration
 	class Pipeline;
 	struct PipelineDesc;
+	struct FrameResource;
 
 	struct RenderTargetDesc
 	{
@@ -122,8 +125,10 @@ namespace renderer {
 	class RenderPass
 	{
 	public:
+		typedef std::function<void(RenderPass& rp, RenderTarget& rt, rhi::CommandBuffer& cmd_buffer)> EXEC_FUNC;
+
 		RenderPass(const char* render_pass_name, bool is_for_present,
-			const std::function<void(RenderPass&, RenderTarget&)>& exec)
+			EXEC_FUNC exec)
 			: pass_name_(render_pass_name), is_for_present_(is_for_present), exec_func_(exec) {};
 		virtual ~RenderPass();
 		const std::string& GetName() const { return pass_name_; }
@@ -136,9 +141,9 @@ namespace renderer {
 		Pipeline* GetPipeline(uint32_t index) { return pipelines_[index]; };
 
 		static RenderPass* Create(const char* render_pass_name, const RenderPassDesc& desc,
-								  const std::function<void(RenderPass&, RenderTarget&)>& exec);
-	
-		std::function<void(RenderPass&, RenderTarget&)> exec_func_;
+								  EXEC_FUNC exec);
+
+		EXEC_FUNC exec_func_;
 
 		bool is_for_present_ = false;
 	protected:
@@ -166,7 +171,7 @@ namespace renderer {
 		template <typename Setup>
 		void AddRenderPass(const char* render_pass_name, const RenderPassDesc& desc,
 			               const Setup& setup,
-						   const std::function<void(RenderPass&, RenderTarget&)>& exec)
+						   RenderPass::EXEC_FUNC exec)
 		{
 			auto rp = RenderPass::Create(render_pass_name, desc, exec);
 			setup(rp, rp->GetRTDesc());
@@ -175,11 +180,13 @@ namespace renderer {
 			is_compiled_ = false;
 		}
 
+		RenderPass& GetRenderPass(const char* render_pass_name);
+
 		void RemoveRenderPass(const char* render_pass_name);
 
 		void Clear();
 
-		void Run();
+		void Run(FrameResource& resource);
 
 		void PostRun();
 
@@ -193,7 +200,6 @@ namespace renderer {
 		std::list<RenderPass*> render_passes_{};
 		std::list<RenderPass*> render_pass_path_{};
 		std::vector<rhi::RHITexture2D*> resources_{};
-		std::vector<RenderTarget*> rts_;
 
 		bool is_compiled_ = false;
 	};
