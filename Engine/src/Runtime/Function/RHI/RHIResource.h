@@ -32,4 +32,9 @@ namespace rhi {
 
 		std::string file_path_{};
 	};
+
+	class RHIBuffer
+	{
+
+	};
 }

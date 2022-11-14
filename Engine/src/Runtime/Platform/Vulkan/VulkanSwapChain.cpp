@@ -1,11 +1,10 @@
 #include "mlepch.h"
 #include "VulkanSwapChain.h"
-#include "VulkanDevice.h"
 #include "VulkanQueue.h"
 #include "VulkanUtils.h"
 #include "VulkanRenderPass.h"
+#include "VulkanRHI.h"
 #include "Runtime/Core/Base/Application.h"
-#include <GLFW/glfw3.h>
 
 namespace rhi {
 
@@ -48,15 +47,19 @@ namespace rhi {
 		return result;
 	}
 
-	VkResult VulkanSwapChain::Present(VkSemaphore render_finished_semaphore, uint32_t* imageIndex)
+	VkResult VulkanSwapChain::Present(Semaphore** semaphores, uint32_t semaphore_count, uint32_t* imageIndex)
 	{
 		VkPresentInfoKHR presentInfo = {};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
-		// TODO: change the semaphore inside VulkanCommandBuffer class to an array
-		VkSemaphore wait_semaphores[] = { render_finished_semaphore };
-		presentInfo.waitSemaphoreCount = 1;
-		presentInfo.pWaitSemaphores = wait_semaphores;
+		VkSemaphore* wait_semaphores_vk = new VkSemaphore[semaphore_count];
+		for (uint32_t i = 0; i < semaphore_count; ++i)
+		{
+			VulkanSemaphore* semaphore_vk = (VulkanSemaphore*)semaphores[i];
+			wait_semaphores_vk[i] = semaphore_vk->semaphore;
+		}
+		presentInfo.waitSemaphoreCount = semaphore_count;
+		presentInfo.pWaitSemaphores = wait_semaphores_vk;
 
 		VkSwapchainKHR swapChains[] = { swap_chain_ };
 		presentInfo.swapchainCount = 1;
@@ -66,6 +69,7 @@ namespace rhi {
 
 		auto result = vkQueuePresentKHR(device_.GetPresentQueue()->GetQueueHandle(), &presentInfo);
 
+		delete [] wait_semaphores_vk;
 		return result;
 	}
 

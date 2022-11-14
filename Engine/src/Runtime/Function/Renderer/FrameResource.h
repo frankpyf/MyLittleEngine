@@ -4,6 +4,8 @@
 
 namespace rhi {
 	class RHI;
+	struct Semaphore;
+	struct Fence;
 }
 namespace renderer {
 	/// <summary>
@@ -12,9 +14,14 @@ namespace renderer {
 	struct FrameResource
 	{
 		// graphics, compute and transfer 
-		rhi::CommandBuffer* command_buffer_;
+		rhi::CommandBuffer* command_buffer;
 		// all the render targets one frame needs
-		std::vector<RenderTarget*> render_targets_;
+		std::vector<RenderTarget*> render_targets;
+
+		//Sync Objects
+		rhi::Fence* in_flight_fence;
+		rhi::Semaphore* render_finished_semaphore;
+		rhi::Semaphore* image_acquired_semaphore;
 	};
 
 	class FrameResourceMngr

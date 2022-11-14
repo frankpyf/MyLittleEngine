@@ -32,6 +32,7 @@ namespace rhi {
 		inline VkPhysicalDevice GetPhysicalHandle() const { return gpu_; };
 		inline VulkanQueue*		GetGfxQueue()		{ return graphics_queue_; };
 		inline VulkanQueue*		GetComputeQueue()	{ return compute_queue_; };
+		inline VulkanQueue*		GetTransferQueue()	{ return transfer_queue_; };
 		inline VulkanQueue*		GetPresentQueue()	{ return present_queue_; };
 		inline VkCommandPool	GetCommandPool()	{ return command_pool_; };
 		inline VkDescriptorPool	GetDescriptorPool()	{ return descriptor_pool_; }

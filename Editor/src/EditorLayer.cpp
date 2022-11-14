@@ -12,8 +12,8 @@ namespace editor {
 			rhi::RHI& rhi = rhi::RHI::GetRHIInstance();
 			// Delcare Resource
 			auto color_buffer = render_graph.RegisterTransientResource();
-			 back_buffer_ = rhi.RHICreateTexture2D(1000,800,rhi::PixelFormat::RGBA);
-			 auto back_buffer_handle = render_graph.RegisterResource(back_buffer_.get());
+			back_buffer_ = rhi.RHICreateTexture2D(1000,800,rhi::PixelFormat::RGBA);
+			auto back_buffer_handle = render_graph.RegisterResource(back_buffer_.get());
 
 			 // Triangle Pass
 			{

@@ -3,6 +3,8 @@
 #include "RenderPass.h"
 
 namespace renderer {
+    // Render Commands
+
     static void BeginRenderPass(rhi::CommandBuffer& cmd_buffer, RenderPass& pass, RenderTarget& render_target)
     {
         cmd_buffer.GetGfxEncoder().BeginRenderPass(pass, render_target);
@@ -34,5 +36,11 @@ namespace renderer {
     static void ImGui_RenderDrawData(rhi::CommandBuffer& cmd_buffer, ImDrawData* draw_data)
     {
         cmd_buffer.GetGfxEncoder().ImGui_RenderDrawData(draw_data);
+    }
+
+    // Transfer Commands
+    static void CopyBufferToBuffer(rhi::CommandBuffer& cmd_buffer, const rhi::CopyBufferToBufferDesc& desc)
+    {
+        cmd_buffer.GetTransferEncoder().CopyBufferToBuffer(desc);
     }
 }

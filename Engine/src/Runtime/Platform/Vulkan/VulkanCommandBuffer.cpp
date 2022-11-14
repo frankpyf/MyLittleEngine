@@ -7,7 +7,7 @@
 #include <imgui.h>
 #include "backends/imgui_impl_vulkan.h"
 namespace rhi {
-	void VulkanCommandEncoder::Begin()
+	void VulkanEncoderBase::InternalBegin()
 	{
 		VkCommandBufferBeginInfo begin_info{};
 		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -20,16 +20,13 @@ namespace rhi {
 		}
 	}
 
-	void VulkanCommandEncoder::End()
+	void VulkanEncoderBase::InternalEnd()
 	{
+
 		vkEndCommandBuffer(command_buffer_);
 	}
 
-	VulkanGraphicsEncoder::~VulkanGraphicsEncoder()
-	{
-
-	}
-
+	//------------------------------------Gfx Encoder------------------------------------
 	void VulkanGraphicsEncoder::BeginRenderPass(renderer::RenderPass& pass,
 										        renderer::RenderTarget& render_target)
 	{
@@ -89,6 +86,50 @@ namespace rhi {
 		vkCmdEndRenderPass(command_buffer_);
 	}
 
+	//------------------------------------Transfer Encoder------------------------------------
+
+	void VulkanTransferEncoder::CopyBufferToBuffer(const CopyBufferToBufferDesc& desc)
+	{
+		assert(desc.dst != nullptr && "fatal:destination buffer is NULL");
+		assert(desc.src != nullptr && "fatal:source buffer is NULL");
+
+		VulkanBufferBase* src_vk = (VulkanBufferBase*)desc.src;
+		VulkanBufferBase* dst_vk = (VulkanBufferBase*)desc.dst;
+
+		VkBufferCopy copyRegion{};
+		copyRegion.srcOffset = desc.src_offset;
+		copyRegion.dstOffset = desc.src_offset;
+		copyRegion.size = desc.size;
+		vkCmdCopyBuffer(command_buffer_, src_vk->buffer_, dst_vk->buffer_, 1, &copyRegion);
+	}
+
+	void VulkanTransferEncoder::CopyBufferToImage(RHIBuffer* buffer,
+												  RHITexture2D* image,
+												  uint32_t              width,
+												  uint32_t              height,
+												  uint32_t              layer_count)
+	{
+		assert(buffer != nullptr && "fatal:buffer is NULL");
+		assert(image != nullptr && "fatal:image is NULL");
+
+		VulkanTexture2D* image_vk = (VulkanTexture2D*)image;
+		VulkanBufferBase* buffer_vk = (VulkanBufferBase*)buffer;
+
+		VkBufferImageCopy region{};
+		region.bufferOffset = 0;
+		region.bufferRowLength = 0;
+		region.bufferImageHeight = 0;
+		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		region.imageSubresource.mipLevel = 0;
+		region.imageSubresource.baseArrayLayer = 0;
+		region.imageSubresource.layerCount = layer_count;
+		region.imageOffset = { 0, 0, 0 };
+		region.imageExtent = { width, height, 1 };
+
+		vkCmdCopyBufferToImage(command_buffer_, buffer_vk->buffer_, image_vk->image_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+	}
+
+	//------------------------------------Cmd Buffer----------------------------------------
 	void VulkanGraphicsEncoder::ImGui_RenderDrawData(ImDrawData* draw_data)
 	{
 		ImGui_ImplVulkan_RenderDrawData(draw_data, command_buffer_);
@@ -109,27 +150,10 @@ namespace rhi {
 		}
 
 		AllocateCommandBuffers();
-
-		VkSemaphoreCreateInfo semaphoreInfo{};
-		semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-		VkFenceCreateInfo fenceInfo{};
-		fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-		fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-		if (vkCreateSemaphore(device_->GetDeviceHandle(), &semaphoreInfo, nullptr, &image_acquired_semaphore_) != VK_SUCCESS ||
-			vkCreateSemaphore(device_->GetDeviceHandle(), &semaphoreInfo, nullptr, &render_finished_semaphore_) != VK_SUCCESS ||
-			vkCreateFence(device_->GetDeviceHandle(), &fenceInfo, nullptr, &frame_in_flight_) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create synchronization objects for a frame!");
-		}
 	}
 
 	VulkanCommandBuffer::~VulkanCommandBuffer()
 	{
-		//Destroy Sync Objects
-		vkDestroySemaphore(device_->GetDeviceHandle(), render_finished_semaphore_, nullptr);
-		vkDestroySemaphore(device_->GetDeviceHandle(), image_acquired_semaphore_, nullptr);
-		vkDestroyFence(device_->GetDeviceHandle(), frame_in_flight_, nullptr);
-
 		// Command buffers will be automatically freed when their command pool is destroyed,
 		// so we don't need explicit cleanup.
 		vkDestroyCommandPool(device_->GetDeviceHandle(), command_pool_, nullptr);
@@ -152,9 +176,6 @@ namespace rhi {
 
 	void VulkanCommandBuffer::Begin()
 	{
-		// Wait
-		vkWaitForFences(device_->GetDeviceHandle(), 1, &frame_in_flight_, VK_TRUE, UINT64_MAX);
-		vkResetFences(device_->GetDeviceHandle(), 1, &frame_in_flight_);
 		// Reset Each Frame
 		vkResetCommandPool(device_->GetDeviceHandle(), command_pool_, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
 		

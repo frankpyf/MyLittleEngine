@@ -5,6 +5,7 @@ namespace rhi {
 	class VulkanDevice;
 	class VulgkanCommandBuffer;
 	class VulkanRenderPass;
+	struct Semaphore;
 
 	struct VulkanSwapChainRecreateInfo
 	{
@@ -46,7 +47,7 @@ namespace rhi {
 		*
 		* @return the result of vkQueuePresentKHR
 		*/
-		VkResult Present(VkSemaphore render_finished_semaphore, uint32_t* imageIndex);
+		VkResult Present(Semaphore** semaphores, uint32_t semaphore_count, uint32_t* imageIndex);
 
 		bool CompareSwapFormats(const VulkanSwapChain& swap_chain) const 
 		{

@@ -84,9 +84,9 @@ namespace rhi {
 		swap_chain_->Destroy();
 	}
 
-	void VulkanViewport::Present(VkSemaphore render_finished_semaphore)
+	void VulkanViewport::Present(Semaphore** semaphores, uint32_t semaphore_count)
 	{
-		auto result = swap_chain_->Present(render_finished_semaphore, &acquired_image_index_);
+		auto result = swap_chain_->Present(semaphores, semaphore_count, &acquired_image_index_);
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) 
 		{
 			RecreateSwapChain();

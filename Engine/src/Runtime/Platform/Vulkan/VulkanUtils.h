@@ -12,8 +12,7 @@ namespace rhi {
 		static void CreateBuffer(VulkanDevice* device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 		static void VMACreateBuffer(const VmaAllocator& allocator,
 									VkDeviceSize size, 
-									VkBufferUsageFlags usage, 
-									VkMemoryPropertyFlags properties, 
+									VkBufferUsageFlags usage,
 									VkBuffer& buffer,
 									VmaAllocation& buffer_allocation);
 		static void VMACreateImage(VmaAllocator& allocator,
@@ -57,6 +56,12 @@ namespace rhi {
 										  VkImageAspectFlags    aspect_mask_bits);
 		static void CopyBufferToImage(VulkanDevice* device,
 								      VkBuffer              buffer,
+									  VkImage               image,
+									  uint32_t              width,
+									  uint32_t              height,
+									  uint32_t              layer_count);
+		static void CopyBufferToBuffer(VulkanDevice* device,
+									  VkBuffer              buffer,
 									  VkImage               image,
 									  uint32_t              width,
 									  uint32_t              height,

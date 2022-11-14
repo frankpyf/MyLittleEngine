@@ -30,7 +30,7 @@ namespace rhi {
         vkBindBufferMemory(device->GetDeviceHandle(), buffer, bufferMemory, 0);
     }
 
-    void VulkanUtils::VMACreateBuffer(const VmaAllocator& allocator, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VmaAllocation& buffer_allocation)
+    void VulkanUtils::VMACreateBuffer(const VmaAllocator& allocator, VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer& buffer, VmaAllocation& buffer_allocation)
     {
         VkBufferCreateInfo bufferInfo{};
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;

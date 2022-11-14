@@ -8,7 +8,28 @@ namespace renderer {
 }
 
 namespace rhi {
-    class RHIGraphicsEncoder
+    class RHIBuffer;
+    class RHITexture2D;
+
+    struct CopyBufferToBufferDesc
+    {
+        RHIBuffer* src;
+        uint64_t src_offset;
+        RHIBuffer* dst;
+        uint64_t dst_offset;
+        uint64_t size;
+    };
+    class RHIEncoderBase
+    {
+    public:
+        virtual void Begin() {};
+
+        virtual void End() {};
+
+        virtual void* GetHandle() = 0;
+    };
+
+    class RHIGraphicsEncoder : public RHIEncoderBase
 	{
 	public:
         virtual ~RHIGraphicsEncoder() = default;
@@ -28,13 +49,25 @@ namespace rhi {
         virtual void ImGui_RenderDrawData(ImDrawData* draw_data) = 0;
 	};
 
-    // TODO: Add more virtual functions
-    class RHIComputeEncoder
+    class RHIComputeEncoder : public RHIEncoderBase
     {
     public:
         virtual ~RHIComputeEncoder() = default;
         virtual void BeginComputePass() = 0;
         virtual void EndComputePass() = 0;
+    };
+
+    class RHITransferEncoder : public RHIEncoderBase
+    {
+    public:
+        virtual ~RHITransferEncoder() = default;
+        
+        virtual void CopyBufferToBuffer(const CopyBufferToBufferDesc& desc)   {};
+        virtual void CopyBufferToImage(RHIBuffer*              buffer,
+                                       RHITexture2D*           image,
+                                       uint32_t              width,
+                                       uint32_t              height,
+                                       uint32_t              layer_count)    {};
     };
 
     class CommandBuffer
@@ -45,12 +78,9 @@ namespace rhi {
         virtual void AllocateCommandBuffers() {};
         virtual void Begin() {};
         virtual void End() {};
-        virtual RHIGraphicsEncoder& GetGfxEncoder() = 0;
-        virtual void* GetNativeGfxHandle()          = 0;
-        virtual void* GetImageAvailableSemaphore()  = 0;
-        virtual void* GetRenderFinishedSemaphore()  = 0;
-        virtual void* GetInFlightFence()            = 0;
-
-        static CommandBuffer* Create();
+        virtual RHIGraphicsEncoder& GetGfxEncoder()         = 0;
+        virtual void* GetNativeGfxHandle()                  = 0;
+        virtual RHITransferEncoder& GetTransferEncoder()    = 0;
+        virtual void* GetNativeTransferHandle()             = 0;
     };
 }
