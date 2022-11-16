@@ -15,12 +15,12 @@ namespace rhi{
     struct QueueSubmitDesc
     {
         RHIEncoderBase** encoders;
-        uint32_t cmds_count;
-        Fence* signal_fence;
+        uint32_t cmds_count = 0;
+        Fence* signal_fence = nullptr;
         Semaphore** wait_semaphore;
-        uint32_t wait_semaphore_count;
+        uint32_t wait_semaphore_count = 0;
         Semaphore** signal_semaphore;
-        uint32_t signal_semaphore_count;
+        uint32_t signal_semaphore_count = 0;
     };
 
     class RHI
@@ -68,6 +68,9 @@ namespace rhi{
         virtual renderer::Pipeline* RHICreatePipeline(const char* vert_path,
                                                       const char* frag_path,
                                                       const renderer::PipelineDesc& desc) = 0;
+        virtual std::shared_ptr<RHIVertexBuffer> RHICreateVertexBuffer(uint64_t size) = 0;
+        virtual std::shared_ptr<RHIStagingBuffer> RHICreateStagingBuffer(uint64_t size) = 0;
+
         virtual Semaphore* RHICreateSemaphore() = 0;
         virtual Fence* RHICreateFence() = 0;
         virtual void RHIDestroySemaphore(Semaphore* semaphore) = 0;

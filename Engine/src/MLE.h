@@ -10,3 +10,6 @@
 
 #include "Runtime/Function/RHI/RHIResource.h"
 #include "Runtime/Function/RHI/RHICommands.h"
+
+// Resource
+#include "Runtime/Resource/Vertex.h"

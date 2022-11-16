@@ -5,10 +5,12 @@ namespace renderer {
     class RenderTarget;
     class RenderPass;
     class Pipeline;
+    class RHIBuffer;
 }
 
 namespace rhi {
     class RHIBuffer;
+    class RHIVertexBuffer;
     class RHITexture2D;
 
     struct CopyBufferToBufferDesc
@@ -38,8 +40,10 @@ namespace rhi {
         virtual void BeginRenderPass(renderer::RenderPass& pass,
                                      renderer::RenderTarget& render_target) = 0;
         virtual void BindGfxPipeline(renderer::Pipeline* pipeline) = 0;
+        virtual void BindVertexBuffers(uint32_t first_binding, uint32_t binding_count, rhi::RHIVertexBuffer** buffer, uint64_t* offsets) = 0;
         virtual void SetViewport(float x, float y, float width, float height, float min_depth, float max_depth) = 0;
         virtual void SetScissor(int32_t offset_x, int32_t offset_y, uint32_t width, uint32_t height) = 0;
+
         virtual void Draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) = 0;
 
         virtual void NextSubpass() {};

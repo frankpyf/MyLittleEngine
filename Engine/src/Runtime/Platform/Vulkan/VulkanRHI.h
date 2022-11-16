@@ -36,7 +36,7 @@ namespace rhi {
 
         virtual void GfxQueueSubmit(const QueueSubmitDesc& desc) override;
         virtual void ComputeQueueSubmit(const QueueSubmitDesc& desc) override;
-        virtual void TransferQueueSubmit(const QueueSubmitDesc& desc)override;
+        virtual void TransferQueueSubmit(const QueueSubmitDesc& desc) override;
         
         virtual void Present(Semaphore** semaphores, uint32_t semaphore_count) override;
 
@@ -49,6 +49,9 @@ namespace rhi {
         virtual renderer::Pipeline*     RHICreatePipeline(const char* vert_path,
                                                           const char* frag_path,
                                                           const renderer::PipelineDesc& desc) override;
+        virtual std::shared_ptr<RHIVertexBuffer> RHICreateVertexBuffer(uint64_t size) override;
+        virtual std::shared_ptr<RHIStagingBuffer> RHICreateStagingBuffer(uint64_t size) override;
+
         virtual Semaphore* RHICreateSemaphore() override;
         virtual Fence* RHICreateFence() override;
         virtual void RHIDestroySemaphore(Semaphore* semaphore) override;

@@ -11,6 +11,7 @@ namespace editor{
 		virtual void OnUpdate(float delta_time) override;
  	private:
 		std::shared_ptr<rhi::RHITexture2D> back_buffer_;
+		std::shared_ptr<rhi::RHIVertexBuffer> vb_;
 		glm::vec2 viewport_size_ = { 800.0f, 800.0f };
 	};
 }

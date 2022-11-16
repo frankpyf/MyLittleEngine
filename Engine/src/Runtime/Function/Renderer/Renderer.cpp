@@ -4,6 +4,8 @@
 #include "Runtime/Function/RHI/RHI.h"
 #include "Runtime/Function/RHI/RHIResource.h"
 #include "Runtime/Function/RHI/RHICommands.h"
+#include "Runtime/Function/Renderer/RenderCommands.h"
+#include "Runtime/Resource/Vertex.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
@@ -73,5 +75,29 @@ namespace renderer
         rhi::RHICommands::GfxQueueSubmit(gfx_submit_info);
         rhi::Semaphore* present_semaphores[] = { current_frame.render_finished_semaphore };
         rhi::RHICommands::Present(present_semaphores, 1);
+    }
+
+    std::shared_ptr<rhi::RHIVertexBuffer> Renderer::LoadModel(const std::vector<resource::Vertex> in_vertices)
+    {
+        rhi::RHI& rhi = rhi::RHI::GetRHIInstance();
+        auto size = sizeof(in_vertices[0]) * in_vertices.size();
+        auto vertex_buffer = rhi.RHICreateVertexBuffer(size);
+        auto staging_buffer = rhi.RHICreateStagingBuffer(size);
+        staging_buffer->SetData(in_vertices.data(), size);
+
+        auto& current_frame = frames_manager_.GetCurrentFrame();
+        auto& cmd_buffer = current_frame.command_buffer->GetTransferEncoder();
+        cmd_buffer.Begin();
+        cmd_buffer.CopyBufferToBuffer({staging_buffer.get(), 0, vertex_buffer.get(), 0, size});
+        cmd_buffer.End();
+
+        rhi::QueueSubmitDesc submit_info{};
+        rhi::RHIEncoderBase* encoders[] = { &cmd_buffer };
+        submit_info.encoders = encoders;
+        submit_info.cmds_count = 1;
+
+        rhi::RHICommands::TransferQueueSubmit(submit_info);
+        rhi.RHIBlockUntilGPUIdle();
+        return vertex_buffer;
     }
 }

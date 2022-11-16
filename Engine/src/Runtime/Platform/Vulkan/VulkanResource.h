@@ -48,7 +48,7 @@ namespace rhi {
 		VulkanRHI& rhi_;
 	};
 
-	class VulkanBufferBase : public RHIBuffer
+	class VulkanBufferBase
 	{
 		friend class VulkanTransferEncoder;
 	public:
@@ -56,7 +56,6 @@ namespace rhi {
 			:rhi_(in_rhi) {};
 		virtual ~VulkanBufferBase();
 
-		void SetData(const void* data, uint64_t size);
 	protected:
 		VkBuffer buffer_ = VK_NULL_HANDLE;
 		VmaAllocation buffer_allocation_;
@@ -64,10 +63,24 @@ namespace rhi {
 		VulkanRHI& rhi_;
 	};
 
-	class VulkanVertexBuffer : public VulkanBufferBase
+	class VulkanVertexBuffer : public RHIVertexBuffer, public VulkanBufferBase
+	{
+		friend class VulkanGraphicsEncoder;
+	public:
+		VulkanVertexBuffer(VulkanRHI& in_rhi, uint64_t size);
+		virtual ~VulkanVertexBuffer() = default;
+		virtual void* GetHandle() override { return (void*)buffer_; };
+	};
+
+	class VulkanStagingBuffer : public RHIStagingBuffer, public VulkanBufferBase
 	{
 	public:
-		VulkanVertexBuffer(VulkanRHI& in_rhi);
+		VulkanStagingBuffer(VulkanRHI& in_rhi, uint64_t size);
+		virtual ~VulkanStagingBuffer();
+		virtual void* GetHandle() override { return (void*)buffer_; };
+		virtual void SetData(const void* data, uint64_t size) override;
+	private:
+		VkDeviceMemory staging_buffer_memory_;
 	};
 }
 

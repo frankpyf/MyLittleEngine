@@ -32,7 +32,7 @@ namespace engine {
 	Application* Application::app_instance_ = nullptr;
 
 	Application::Application(const ApplicationSpecification& specification)
-		: app_specification_(specification)
+		: app_specification_(specification), renderer_(renderer::Renderer::GetInstance())
 	{
 		//some assert(!app_instance_...) right here
 		app_instance_ = this;
@@ -48,8 +48,7 @@ namespace engine {
 
 	void Application::Init()
 	{
-		renderer_ = new renderer::Renderer();
-		renderer_->Init();
+		renderer_.Init();
 		for (auto layer : layer_stack_)
 			layer->OnAttach();
 		//EventBus& bus = EventBus::GetInstance();
@@ -75,8 +74,7 @@ namespace engine {
 		layer_stack_.clear();
 
 		// Cleanup
-		renderer_->Shutdown();
-		delete renderer_;
+		renderer_.Shutdown();
 
 		g_ApplicationRunning = false;
 	}
@@ -110,12 +108,12 @@ namespace engine {
 				for (auto& layer : layer_stack_)
 					layer->OnUpdate(delta_time);
 
-				renderer_->Begin();
+				renderer_.Begin();
 				for (auto& layer : layer_stack_)
 					layer->OnUIRender();
 
-				renderer_->Tick(delta_time);
-				renderer_->End();
+				renderer_.Tick(delta_time);
+				renderer_.End();
 			}
 			
 		}

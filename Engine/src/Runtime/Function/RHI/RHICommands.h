@@ -16,9 +16,9 @@ namespace rhi {
 			rhi_.GfxQueueSubmit(desc);
 		}
 
-		static void TransferQueueSubmit(rhi::CommandBuffer* cmd_buffer)
+		static void TransferQueueSubmit(const rhi::QueueSubmitDesc& desc)
 		{
-
+			rhi_.TransferQueueSubmit(desc);
 		}
 		
 		static void Present(rhi::Semaphore** semaphores, uint32_t semaphore_count)

@@ -35,6 +35,21 @@ namespace rhi {
 
 	class RHIBuffer
 	{
+	public:
+		virtual ~RHIBuffer() = default;
+		virtual void* GetHandle() = 0;
+	};
 
+	class RHIVertexBuffer : public RHIBuffer
+	{
+	public: 
+		virtual ~RHIVertexBuffer() = default;
+	};
+
+	class RHIStagingBuffer : public RHIBuffer
+	{
+	public:
+		virtual ~RHIStagingBuffer() = default;
+		virtual void SetData(const void* data, uint64_t size) = 0;
 	};
 }

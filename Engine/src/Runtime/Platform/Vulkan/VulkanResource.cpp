@@ -160,38 +160,45 @@ namespace rhi {
 
     VulkanBufferBase::~VulkanBufferBase()
     {
-        vmaDestroyBuffer(rhi_.allocator_, buffer_, buffer_allocation_);
+        if (buffer_ != VK_NULL_HANDLE)
+            vmaDestroyBuffer(rhi_.allocator_, buffer_, buffer_allocation_);
     }
 
-    void VulkanBufferBase::SetData(const void* data, uint64_t size)
-    {
-        // Create a buffer in host visible memory 
-        // so that we can use vkMapMemory and copy the data to it
-        VkBuffer staging_buffer;
-        VkDeviceMemory staging_buffer_memory;
-        // Create the Upload Buffer
-        VulkanDevice* device = rhi_.GetDevice();
-        VulkanUtils::CreateBuffer(device, size,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            staging_buffer,
-            staging_buffer_memory);
-        void* map;
-        vkMapMemory(device->GetDeviceHandle(), staging_buffer_memory, 0, size, 0, &map);
-        memcpy(map, data, static_cast<size_t>(size));
-        vkUnmapMemory(device->GetDeviceHandle(), staging_buffer_memory);
-
-        vkDestroyBuffer(rhi_.GetDevice()->GetDeviceHandle(), staging_buffer, nullptr);
-        vkFreeMemory(rhi_.GetDevice()->GetDeviceHandle(), staging_buffer_memory, nullptr);
-    }
-
-    VulkanVertexBuffer::VulkanVertexBuffer(VulkanRHI& in_rhi)
+    VulkanStagingBuffer::VulkanStagingBuffer(VulkanRHI& in_rhi, uint64_t size)
         :VulkanBufferBase(in_rhi)
     {
-        /*VulkanUtils::VMACreateBuffer(rhi_.allocator_,
-                                     sizeof(vertices[0]) * vertices.size(),
-                                     VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VulkanUtils::CreateBuffer(rhi_.GetDevice(), size,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            buffer_,
+            staging_buffer_memory_);
+        MLE_CORE_INFO("[vulkan] Staging Buffer created");
+    }
+
+    VulkanStagingBuffer::~VulkanStagingBuffer()
+    {
+        vkDestroyBuffer(rhi_.GetDevice()->GetDeviceHandle(), buffer_, nullptr);
+        vkFreeMemory(rhi_.GetDevice()->GetDeviceHandle(), staging_buffer_memory_, nullptr);
+        buffer_ = VK_NULL_HANDLE;
+        MLE_CORE_INFO("[vulkan] Staging Buffer created");
+    }
+
+    void VulkanStagingBuffer::SetData(const void* data, uint64_t size)
+    {
+        void* map;
+        vkMapMemory(rhi_.GetDevice()->GetDeviceHandle(), staging_buffer_memory_, 0, size, 0, &map);
+        memcpy(map, data, static_cast<size_t>(size));
+        vkUnmapMemory(rhi_.GetDevice()->GetDeviceHandle(), staging_buffer_memory_);
+    }
+
+    VulkanVertexBuffer::VulkanVertexBuffer(VulkanRHI& in_rhi, uint64_t size)
+        :VulkanBufferBase(in_rhi)
+    {
+        VulkanUtils::VMACreateBuffer(rhi_.allocator_,
+                                     size,
+                                     VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                      buffer_,
-                                     buffer_allocation_);*/
+                                     buffer_allocation_);
+        MLE_CORE_INFO("[vulkan] Vertex Buffer created");
     }
 }

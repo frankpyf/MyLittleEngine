@@ -91,9 +91,16 @@ namespace rhi {
 
     void VulkanRHI::CreateInstance()
     {
+		VkApplicationInfo appInfo{};
+		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+		appInfo.applicationVersion = VK_MAKE_VERSION(0, 0, 1);
+		appInfo.pEngineName = "My Little Engine";
+		appInfo.engineVersion = VK_MAKE_VERSION(0, 0, 1);
+		appInfo.apiVersion = VK_API_VERSION_1_3;
+
         VkInstanceCreateInfo create_info{};
         create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-
+		create_info.pApplicationInfo = &appInfo;
 		GetExtensionsAndLayers();
 
 		create_info.enabledExtensionCount = static_cast<uint32_t>(instance_extensions_.size());
@@ -411,5 +418,15 @@ namespace rhi {
 		}
 		vkWaitForFences(device_->GetDeviceHandle(), fence_count, fences, VK_TRUE, UINT64_MAX);
 		vkResetFences(device_->GetDeviceHandle(), fence_count, fences);
+	}
+
+	std::shared_ptr<RHIVertexBuffer> VulkanRHI::RHICreateVertexBuffer(uint64_t size)
+	{
+		return std::make_shared<VulkanVertexBuffer>(*this, size);
+	}
+
+	std::shared_ptr<RHIStagingBuffer> VulkanRHI::RHICreateStagingBuffer(uint64_t size)
+	{
+		return std::make_shared<VulkanStagingBuffer>(*this, size);
 	}
 }

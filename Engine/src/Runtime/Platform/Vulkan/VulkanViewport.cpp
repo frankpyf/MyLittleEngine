@@ -58,7 +58,6 @@ namespace rhi {
 
 	void VulkanViewport::CreateSwapChain(VulkanSwapChainRecreateInfo* recreate_info)
 	{
-
 		if (recreate_info->swap_chain == nullptr)
 			swap_chain_ = new VulkanSwapChain(surface_, *device_, recreate_info);
 		else
@@ -71,7 +70,6 @@ namespace rhi {
 				MLE_CORE_ERROR("Swap chain image(or depth) format has changed!");
 				throw std::runtime_error("Swap chain image(or depth) format has changed!");
 			}
-
 			old_swap_chain->Destroy();
 			delete old_swap_chain;
 			old_swap_chain = nullptr;
@@ -104,6 +102,7 @@ namespace rhi {
 		if (result == VK_ERROR_OUT_OF_DATE_KHR)
 		{
 			RecreateSwapChain();
+			return;
 		}
 
 		if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
