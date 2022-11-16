@@ -1,3 +1,6 @@
+
+
+
 #pragma once
 
 #include "Runtime/Core/Base/Layer.h"
@@ -65,7 +68,7 @@ namespace engine {
 		std::vector<std::shared_ptr<Layer>> layer_stack_;
 		std::function<void()> menu_bar_callback_;
 
-		renderer::Renderer* renderer_;
+		renderer::Renderer& renderer_;
 
 		std::chrono::steady_clock::time_point last_tick_time_point_{ std::chrono::steady_clock::now() };
 	};

@@ -58,7 +58,6 @@ namespace rhi {
 
 	void VulkanViewport::CreateSwapChain(VulkanSwapChainRecreateInfo* recreate_info)
 	{
-
 		if (recreate_info->swap_chain == nullptr)
 			swap_chain_ = new VulkanSwapChain(surface_, *device_, recreate_info);
 		else
@@ -71,7 +70,6 @@ namespace rhi {
 				MLE_CORE_ERROR("Swap chain image(or depth) format has changed!");
 				throw std::runtime_error("Swap chain image(or depth) format has changed!");
 			}
-
 			old_swap_chain->Destroy();
 			delete old_swap_chain;
 			old_swap_chain = nullptr;
@@ -84,9 +82,9 @@ namespace rhi {
 		swap_chain_->Destroy();
 	}
 
-	void VulkanViewport::Present(VkSemaphore render_finished_semaphore)
+	void VulkanViewport::Present(Semaphore** semaphores, uint32_t semaphore_count)
 	{
-		auto result = swap_chain_->Present(render_finished_semaphore, &acquired_image_index_);
+		auto result = swap_chain_->Present(semaphores, semaphore_count, &acquired_image_index_);
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) 
 		{
 			RecreateSwapChain();
@@ -104,6 +102,7 @@ namespace rhi {
 		if (result == VK_ERROR_OUT_OF_DATE_KHR)
 		{
 			RecreateSwapChain();
+			return;
 		}
 
 		if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)

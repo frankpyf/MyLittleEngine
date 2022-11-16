@@ -5,6 +5,7 @@ namespace rhi {
 	class VulkanDevice;
 	class VulkanFrameResource;
 	class CommandBuffer;
+	struct QueueSubmitDesc;
 
 	class VulkanQueue
 	{
@@ -14,7 +15,7 @@ namespace rhi {
 		inline uint32_t GetFamilyIndex() const { return family_index_; };
 		inline VkQueue  GetQueueHandle() const { return queue_; };
 
-		void Submit(CommandBuffer* cmd_buffer);
+		void Submit(const QueueSubmitDesc& desc);
 	private:
 		VkQueue queue_;
 		uint32_t family_index_;

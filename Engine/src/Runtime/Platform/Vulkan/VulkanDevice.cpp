@@ -49,7 +49,7 @@ namespace rhi {
 
 		// extensions related
 		int device_extension_count = 1;
-		const char* device_extensions[] = { "VK_KHR_swapchain" };
+		const char* device_extensions[] = { "VK_KHR_swapchain"};
 		device_create_info.enabledExtensionCount = device_extension_count;
 		device_create_info.ppEnabledExtensionNames = device_extensions;
 
@@ -132,6 +132,10 @@ namespace rhi {
 			compute_queue_ = new VulkanQueue(this, compute_queue_family_index);
 		else
 			compute_queue_ = new VulkanQueue(this, gfx_queue_family_index);
+		if (transfer_queue_family_index != -1)
+			transfer_queue_ = new VulkanQueue(this, transfer_queue_family_index);
+		else
+			transfer_queue_ = new VulkanQueue(this, gfx_queue_family_index);
 		MLE_CORE_INFO("Logical Device is created from: {0}", gpu_properties_.deviceName);
 	}
 

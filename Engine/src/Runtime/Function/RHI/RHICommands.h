@@ -11,14 +11,19 @@ namespace rhi {
 			rhi_.Init();
 		};
 		
-		static void GfxQueueSubmit(rhi::CommandBuffer* cmd_buffer)
+		static void GfxQueueSubmit(const rhi::QueueSubmitDesc& desc)
 		{
-			rhi_.GfxQueueSubmit(cmd_buffer);
+			rhi_.GfxQueueSubmit(desc);
+		}
+
+		static void TransferQueueSubmit(const rhi::QueueSubmitDesc& desc)
+		{
+			rhi_.TransferQueueSubmit(desc);
 		}
 		
-		static void Present(void* semaphore)
+		static void Present(rhi::Semaphore** semaphores, uint32_t semaphore_count)
 		{
-			rhi_.Present(semaphore);
+			rhi_.Present(semaphores, semaphore_count);
 		}
 
 		static void* GetRHIInstance()

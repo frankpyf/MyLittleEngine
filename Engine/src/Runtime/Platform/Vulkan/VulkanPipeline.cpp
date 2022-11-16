@@ -2,6 +2,7 @@
 #include "VulkanPipeline.h"
 #include "VulkanRHI.h"
 #include "Runtime/Function/Renderer/RenderPass.h"
+#include "Runtime/Resource/Vertex.h"
 
 namespace renderer {
 	VulkanPipeline::VulkanPipeline(rhi::VulkanDevice* in_device,
@@ -73,15 +74,33 @@ namespace renderer {
 		shaderStages[1].pNext = nullptr;
 		shaderStages[1].pSpecializationInfo = nullptr;
 
-		// TODO: Implement vertex input
-		/*auto bindingDescriptions = LveModel::Vertex::getBindingDescriptions();
-		auto attributeDescriptions = LveModel::Vertex::getAttributeDescriptions();*/
+		
+		// TEMP
+		VkVertexInputBindingDescription binding_description{};
+		binding_description.binding = 0;
+		binding_description.stride = sizeof(resource::Vertex);
+		binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+		VkVertexInputAttributeDescription position{};
+		position.binding = 0;
+		position.location = 0;
+		position.format = VK_FORMAT_R32G32_SFLOAT;
+		position.offset = offsetof(resource::Vertex, pos);
+
+		VkVertexInputAttributeDescription color{};
+		color.binding = 0;
+		color.location = 1;
+		color.format = VK_FORMAT_R32G32B32_SFLOAT;
+		color.offset = offsetof(resource::Vertex, color);
+
+		VkVertexInputAttributeDescription vertex_attribute_desc[] = { position, color };
+
 		VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-		vertexInputInfo.vertexAttributeDescriptionCount = 0;
-		vertexInputInfo.vertexBindingDescriptionCount = 0;
-		vertexInputInfo.pVertexAttributeDescriptions = nullptr;
-		vertexInputInfo.pVertexBindingDescriptions = nullptr;
+		vertexInputInfo.vertexAttributeDescriptionCount = 2;
+		vertexInputInfo.vertexBindingDescriptionCount = 1;
+		vertexInputInfo.pVertexAttributeDescriptions = vertex_attribute_desc;
+		vertexInputInfo.pVertexBindingDescriptions = &binding_description;
 
 		VkPipelineInputAssemblyStateCreateInfo input_assembly_state{};
 		input_assembly_state.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;

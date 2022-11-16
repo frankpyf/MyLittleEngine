@@ -10,11 +10,20 @@ namespace editor {
 
 			RenderGraph& render_graph = RenderGraph::GetInstance();
 			rhi::RHI& rhi = rhi::RHI::GetRHIInstance();
+			Renderer& renderer = Renderer::GetInstance();
 			// Delcare Resource
 			auto color_buffer = render_graph.RegisterTransientResource();
-			 back_buffer_ = rhi.RHICreateTexture2D(1000,800,rhi::PixelFormat::RGBA);
-			 auto back_buffer_handle = render_graph.RegisterResource(back_buffer_.get());
+			back_buffer_ = rhi.RHICreateTexture2D(1000,800,rhi::PixelFormat::RGBA);
+			auto back_buffer_handle = render_graph.RegisterResource(back_buffer_.get());
 
+
+			const std::vector<resource::Vertex> vertices = {
+			{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+			{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+			{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+			};
+			vb_ = renderer.LoadModel(vertices);
+			
 			 // Triangle Pass
 			{
 				RenderPassDesc tri_pass{};
@@ -44,6 +53,10 @@ namespace editor {
 						BindGfxPipeline(cmd_buffer, rp.GetPipeline(0));
 						SetViewport(cmd_buffer, 0, 0, back_buffer_->GetWidth(), back_buffer_->GetHeight());
 						SetScissor(cmd_buffer, 0, 0, back_buffer_->GetWidth(), back_buffer_->GetHeight());
+						rhi::RHIVertexBuffer* vbs[] = { vb_.get() };
+						uint64_t offsets[] = { 0 };
+
+						BindVertexBuffers(cmd_buffer, 0, 1, vbs, offsets);
 						Draw(cmd_buffer, 3, 1);
 						EndRenderPass(cmd_buffer);
 					});

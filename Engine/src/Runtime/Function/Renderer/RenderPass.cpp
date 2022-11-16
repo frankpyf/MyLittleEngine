@@ -92,8 +92,8 @@ namespace renderer {
 			Compile();
 		// TEMP!!!!!!!!!!!!!!!!!!
 		
-		auto& cmd_buffer = resource.command_buffer_;
-		auto& rts = resource.render_targets_;
+		auto& cmd_buffer = resource.command_buffer;
+		auto& rts = resource.render_targets;
 		for (auto pass:render_passes_)
 		{
 			// TODO:Arena allocation

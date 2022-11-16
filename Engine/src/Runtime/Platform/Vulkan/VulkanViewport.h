@@ -10,7 +10,6 @@ namespace rhi {
 	class VulkanCommandBuffer;
 	class VulkanRHI;
 
-
 	class VulkanViewport
 	{
 	public:
@@ -28,7 +27,7 @@ namespace rhi {
 		void CleanupSwapChain();
 		void RecreateSwapChain();
 
-		void Present(VkSemaphore render_finished_semaphore);
+		void Present(Semaphore** semaphores, uint32_t semaphore_count);
 
 		void AcquireNextImage(VkSemaphore& image_available_semaphore);
 		uint32_t GetAccquiredIndex() { return acquired_image_index_; };

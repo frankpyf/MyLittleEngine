@@ -91,9 +91,16 @@ namespace rhi {
 
     void VulkanRHI::CreateInstance()
     {
+		VkApplicationInfo appInfo{};
+		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+		appInfo.applicationVersion = VK_MAKE_VERSION(0, 0, 1);
+		appInfo.pEngineName = "My Little Engine";
+		appInfo.engineVersion = VK_MAKE_VERSION(0, 0, 1);
+		appInfo.apiVersion = VK_API_VERSION_1_3;
+
         VkInstanceCreateInfo create_info{};
         create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-
+		create_info.pApplicationInfo = &appInfo;
 		GetExtensionsAndLayers();
 
 		create_info.enabledExtensionCount = static_cast<uint32_t>(instance_extensions_.size());
@@ -284,10 +291,10 @@ namespace rhi {
 		return (void*)device_->GetComputeQueue()->GetQueueHandle();
 	}
 
-	void VulkanRHI::AcquireNextImage(void* semaphore)
+	void VulkanRHI::AcquireNextImage(Semaphore* semaphore)
 	{
-		VkSemaphore image_acquired_semaphore = (VkSemaphore)semaphore;
-		viewport_->AcquireNextImage(image_acquired_semaphore);
+		VulkanSemaphore* image_acquired_semaphore = (VulkanSemaphore*)semaphore;
+		viewport_->AcquireNextImage(image_acquired_semaphore->semaphore);
 	}
 
 	void* VulkanRHI::GetNativeSwapchainImageView()
@@ -311,24 +318,24 @@ namespace rhi {
 		return device_->GetGfxQueue()->GetFamilyIndex();
 	}
 
-	void VulkanRHI::GfxQueueSubmit(CommandBuffer* cmd_buffer)
+	void VulkanRHI::GfxQueueSubmit(const QueueSubmitDesc& desc)
 	{
-		device_->GetGfxQueue()->Submit(cmd_buffer);
+		device_->GetGfxQueue()->Submit(desc);
 	}
 
-	void VulkanRHI::ComputeQueueSubmit()
-	{
-
-	}
-
-	void VulkanRHI::TransferQueueSubmit()
+	void VulkanRHI::ComputeQueueSubmit(const QueueSubmitDesc& desc)
 	{
 
 	}
 
-	void VulkanRHI::Present(void* semaphore)
+	void VulkanRHI::TransferQueueSubmit(const QueueSubmitDesc& desc)
 	{
-		viewport_->Present((VkSemaphore)semaphore);
+		device_->GetTransferQueue()->Submit(desc);
+	}
+
+	void VulkanRHI::Present(Semaphore** semaphores, uint32_t semaphore_count)
+	{
+		viewport_->Present(semaphores, semaphore_count);
 	}
 
 	CommandBuffer* VulkanRHI::RHICreateCommandBuffer()
@@ -362,4 +369,64 @@ namespace rhi {
 		return new renderer::VulkanPipeline(device_, vert_path, frag_path, desc);
 	}
 
+	Semaphore* VulkanRHI::RHICreateSemaphore()
+	{
+		VulkanSemaphore* semaphore_vk = new VulkanSemaphore{};
+		VkSemaphoreCreateInfo semaphoreInfo{};
+		semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+		if (vkCreateSemaphore(device_->GetDeviceHandle(), &semaphoreInfo, nullptr, &semaphore_vk->semaphore) != VK_SUCCESS) 
+		{
+			MLE_CORE_ERROR("Failed to create vulkan semaphore");
+			throw std::runtime_error("Failed to create vulkan semaphore");
+		}
+		return semaphore_vk;
+	}
+
+	Fence* VulkanRHI::RHICreateFence()
+	{
+		VulkanFence* fence_vk = new VulkanFence{};
+		VkFenceCreateInfo fenceInfo{};
+		fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+		fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+		if (vkCreateFence(device_->GetDeviceHandle(), &fenceInfo, nullptr, &fence_vk->fence) != VK_SUCCESS)
+		{
+			MLE_CORE_ERROR("Failed to create vulkan fence");
+			throw std::runtime_error("Failed to create vulkan fence");
+		}
+		return fence_vk;
+	}
+
+	void VulkanRHI::RHIDestroySemaphore(Semaphore* semaphore)
+	{
+		VulkanSemaphore* semaphore_vk = (VulkanSemaphore*)semaphore;
+		vkDestroySemaphore(device_->GetDeviceHandle(), semaphore_vk->semaphore, nullptr);
+	}
+
+	void VulkanRHI::RHIDestroyFence(Fence* fence)
+	{
+		VulkanFence* fence_vk = (VulkanFence*)fence;
+		vkDestroyFence(device_->GetDeviceHandle(), fence_vk->fence, nullptr);
+	}
+
+	void VulkanRHI::RHIWaitForFences(Fence** fence, uint32_t fence_count)
+	{
+		VkFence* fences = new VkFence[fence_count];
+		for (uint32_t i = 0; i < fence_count; ++i)
+		{
+			VulkanFence* fence_vk = (VulkanFence*)fence[i];
+			fences[i] = fence_vk->fence;
+		}
+		vkWaitForFences(device_->GetDeviceHandle(), fence_count, fences, VK_TRUE, UINT64_MAX);
+		vkResetFences(device_->GetDeviceHandle(), fence_count, fences);
+	}
+
+	std::shared_ptr<RHIVertexBuffer> VulkanRHI::RHICreateVertexBuffer(uint64_t size)
+	{
+		return std::make_shared<VulkanVertexBuffer>(*this, size);
+	}
+
+	std::shared_ptr<RHIStagingBuffer> VulkanRHI::RHICreateStagingBuffer(uint64_t size)
+	{
+		return std::make_shared<VulkanStagingBuffer>(*this, size);
+	}
 }

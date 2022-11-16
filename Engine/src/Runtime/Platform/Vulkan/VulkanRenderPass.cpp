@@ -42,8 +42,8 @@ namespace Utils {
 		case renderer::LoadOp::LOAD: return VK_ATTACHMENT_LOAD_OP_LOAD;
 		case renderer::LoadOp::CLEAR:return VK_ATTACHMENT_LOAD_OP_CLEAR;
 		case renderer::LoadOp::DONT_CARE:return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		default:return (VkAttachmentLoadOp)0;
 		}
-		assert("No Load Operation specified!");
 	}
 
 	VkAttachmentStoreOp AttachmentStoreOpToVulkanLoadOp(renderer::StoreOp in_op)
@@ -52,8 +52,8 @@ namespace Utils {
 		{
 		case renderer::StoreOp::STORE:return VK_ATTACHMENT_STORE_OP_STORE;
 		case renderer::StoreOp::DONT_CARE:return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		default:return (VkAttachmentStoreOp)0;
 		}
-		assert("No Store Operation specified!");
 	}
 
 	VkImageLayout ImageLayoutToVkImageLayout(renderer::ImageLayout in_layout)
@@ -67,8 +67,8 @@ namespace Utils {
 		case renderer::ImageLayout::IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 		case renderer::ImageLayout::IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		case renderer::ImageLayout::IMAGE_LAYOUT_PRESENT:return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		default:return (VkImageLayout)0;
 		}
-		assert("No Image Layout specified in the Render Pass Desc!");
 	}
 }
 

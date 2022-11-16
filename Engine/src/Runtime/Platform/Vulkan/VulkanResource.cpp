@@ -157,4 +157,48 @@ namespace rhi {
         // Create the Descriptor Set:
         descriptor_set_ = (VkDescriptorSet)ImGui_ImplVulkan_AddTexture(sampler_, image_view_, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
+
+    VulkanBufferBase::~VulkanBufferBase()
+    {
+        if (buffer_ != VK_NULL_HANDLE)
+            vmaDestroyBuffer(rhi_.allocator_, buffer_, buffer_allocation_);
+    }
+
+    VulkanStagingBuffer::VulkanStagingBuffer(VulkanRHI& in_rhi, uint64_t size)
+        :VulkanBufferBase(in_rhi)
+    {
+        VulkanUtils::CreateBuffer(rhi_.GetDevice(), size,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            buffer_,
+            staging_buffer_memory_);
+        MLE_CORE_INFO("[vulkan] Staging Buffer created");
+    }
+
+    VulkanStagingBuffer::~VulkanStagingBuffer()
+    {
+        vkDestroyBuffer(rhi_.GetDevice()->GetDeviceHandle(), buffer_, nullptr);
+        vkFreeMemory(rhi_.GetDevice()->GetDeviceHandle(), staging_buffer_memory_, nullptr);
+        buffer_ = VK_NULL_HANDLE;
+        MLE_CORE_INFO("[vulkan] Staging Buffer created");
+    }
+
+    void VulkanStagingBuffer::SetData(const void* data, uint64_t size)
+    {
+        void* map;
+        vkMapMemory(rhi_.GetDevice()->GetDeviceHandle(), staging_buffer_memory_, 0, size, 0, &map);
+        memcpy(map, data, static_cast<size_t>(size));
+        vkUnmapMemory(rhi_.GetDevice()->GetDeviceHandle(), staging_buffer_memory_);
+    }
+
+    VulkanVertexBuffer::VulkanVertexBuffer(VulkanRHI& in_rhi, uint64_t size)
+        :VulkanBufferBase(in_rhi)
+    {
+        VulkanUtils::VMACreateBuffer(rhi_.allocator_,
+                                     size,
+                                     VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                     buffer_,
+                                     buffer_allocation_);
+        MLE_CORE_INFO("[vulkan] Vertex Buffer created");
+    }
 }

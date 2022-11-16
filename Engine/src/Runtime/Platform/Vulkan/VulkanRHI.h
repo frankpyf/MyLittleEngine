@@ -9,35 +9,36 @@
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 namespace rhi {
+    struct VulkanSemaphore :public Semaphore {
+        VkSemaphore semaphore = VK_NULL_HANDLE;
+    };
+    struct VulkanFence :public Fence {
+        VkFence fence = VK_NULL_HANDLE;
+    };
     class VulkanRHI : public RHI
     {
     public:
         virtual void Init() override;
         virtual void Shutdown() override;
 
-        // @brief use static_cast<VkInstance>(...) to get the actual instance
         virtual void* GetNativeInstance() override;
-        // @brief use static_cast<VkDevice>(...) to get the actual logical device
         virtual void* GetNativeDevice() override;
-        // @brief use static_cast<VkPhysicalDevice>(...) to get the actual physical device
         virtual void* GetNativePhysicalDevice() override;
-        // @brief use static_cast<VkQueue>(...) to get the actual queue
         virtual void* GetNativeGraphicsQueue() override;
-        // @brief use static_cast<VkQueue>(...) to get the actual queue
         virtual void* GetNativeComputeQueue() override;
 
-        virtual void AcquireNextImage(void* semaphore) override;
+        virtual void AcquireNextImage(Semaphore* semaphore) override;
         virtual void* GetNativeSwapchainImageView() override;
         virtual uint32_t GetViewportWidth() override;
         virtual uint32_t GetViewportHeight() override;
 
         virtual uint32_t GetGfxQueueFamily() override;
 
-        virtual void GfxQueueSubmit(CommandBuffer* cmd_buffer) override;
-        virtual void ComputeQueueSubmit() override;
-        virtual void TransferQueueSubmit()override;
+        virtual void GfxQueueSubmit(const QueueSubmitDesc& desc) override;
+        virtual void ComputeQueueSubmit(const QueueSubmitDesc& desc) override;
+        virtual void TransferQueueSubmit(const QueueSubmitDesc& desc) override;
         
-        virtual void Present(void* semaphore) override;
+        virtual void Present(Semaphore** semaphores, uint32_t semaphore_count) override;
 
         virtual CommandBuffer* RHICreateCommandBuffer() override;
         virtual std::shared_ptr<RHITexture2D> RHICreateTexture2D(uint32_t width, uint32_t height, PixelFormat in_format, uint32_t miplevels = 1) override;
@@ -48,6 +49,14 @@ namespace rhi {
         virtual renderer::Pipeline*     RHICreatePipeline(const char* vert_path,
                                                           const char* frag_path,
                                                           const renderer::PipelineDesc& desc) override;
+        virtual std::shared_ptr<RHIVertexBuffer> RHICreateVertexBuffer(uint64_t size) override;
+        virtual std::shared_ptr<RHIStagingBuffer> RHICreateStagingBuffer(uint64_t size) override;
+
+        virtual Semaphore* RHICreateSemaphore() override;
+        virtual Fence* RHICreateFence() override;
+        virtual void RHIDestroySemaphore(Semaphore* semaphore) override;
+        virtual void RHIDestroyFence(Fence* fence) override;
+        virtual void RHIWaitForFences(Fence** fence, uint32_t fence_count) override;
 
         void RHITick(float delta_time) override;
         void RHIBlockUntilGPUIdle() override;
