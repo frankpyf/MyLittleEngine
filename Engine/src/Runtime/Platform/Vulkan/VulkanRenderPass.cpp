@@ -23,61 +23,12 @@ static void check_vk_result(VkResult err)
 		abort();
 }
 
-namespace Utils {
-	VkFormat AttachmentFormatToVulkanFormat(renderer::AttachmentFormat in_format)
-	{
-		switch (in_format)
-		{
-		case renderer::AttachmentFormat::RGBA8: return VK_FORMAT_R8G8B8A8_UNORM;
-		// TODO: Switch to FindDepthFormat()
-		case renderer::AttachmentFormat::DEPTH24STENCIL8:return VK_FORMAT_D32_SFLOAT;
-		default:return (VkFormat)0;
-		}
-	}
-
-	VkAttachmentLoadOp AttachmentLoadOpToVulkanLoadOp(renderer::LoadOp in_op)
-	{
-		switch (in_op)
-		{
-		case renderer::LoadOp::LOAD: return VK_ATTACHMENT_LOAD_OP_LOAD;
-		case renderer::LoadOp::CLEAR:return VK_ATTACHMENT_LOAD_OP_CLEAR;
-		case renderer::LoadOp::DONT_CARE:return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		default:return (VkAttachmentLoadOp)0;
-		}
-	}
-
-	VkAttachmentStoreOp AttachmentStoreOpToVulkanLoadOp(renderer::StoreOp in_op)
-	{
-		switch (in_op)
-		{
-		case renderer::StoreOp::STORE:return VK_ATTACHMENT_STORE_OP_STORE;
-		case renderer::StoreOp::DONT_CARE:return VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		default:return (VkAttachmentStoreOp)0;
-		}
-	}
-
-	VkImageLayout ImageLayoutToVkImageLayout(renderer::ImageLayout in_layout)
-	{
-		switch (in_layout)
-		{
-		case renderer::ImageLayout::IMAGE_LAYOUT_UNDEFINED:return VK_IMAGE_LAYOUT_UNDEFINED;
-		case renderer::ImageLayout::IMAGE_LAYOUT_GENERAL:return VK_IMAGE_LAYOUT_GENERAL;
-		case renderer::ImageLayout::IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		case renderer::ImageLayout::IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		case renderer::ImageLayout::IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-		case renderer::ImageLayout::IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		case renderer::ImageLayout::IMAGE_LAYOUT_PRESENT:return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-		default:return (VkImageLayout)0;
-		}
-	}
-}
-
-namespace renderer {
-	VulkanRenderTarget::VulkanRenderTarget(rhi::VulkanRHI& in_rhi, RenderPass& pass)
-		:RenderTarget(pass.GetRTDesc().width, pass.GetRTDesc().height, pass.GetRTDesc().clear_value),
+namespace rhi {
+	VulkanRenderTarget::VulkanRenderTarget(rhi::VulkanRHI& in_rhi, const RenderTarget::Descriptor& desc)
+		:RenderTarget(desc.width, desc.height, desc.clear_value),
 		rhi_(in_rhi)
 	{
-		CreateFramebuffer(pass);
+		CreateFramebuffer(desc);
 	}
 
 	VulkanRenderTarget::~VulkanRenderTarget()
@@ -85,17 +36,25 @@ namespace renderer {
 		DestroyFramebuffer();
 	}
 
-	void VulkanRenderTarget::CreateFramebuffer(RenderPass& pass)
+	void VulkanRenderTarget::CreateFramebuffer(const RenderTarget::Descriptor& desc)
 	{
 		std::vector<VkImageView> attachments{};
-		for (auto attachment : pass.GetRTDesc().attachments)
+		for (auto attachment : desc.attachments)
 		{
-			attachments.emplace_back((VkImageView)attachment);
+			attachments.emplace_back(static_cast<VkImageView>(attachment->GetView()));
 		}
+
+		if (desc.pass->is_for_present_)
+		{
+			attachments.emplace_back((VkImageView)rhi_.GetNativeSwapchainImageView());
+			width_ = rhi_.GetViewportWidth();
+			height_ = rhi_.GetViewportHeight();
+		}
+
 		VkFramebufferCreateInfo framebuffer_create_info{};
 		framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		framebuffer_create_info.flags = 0U;
-		framebuffer_create_info.renderPass = (VkRenderPass)pass.GetHandle();
+		framebuffer_create_info.renderPass = (VkRenderPass)desc.pass->GetHandle();
 		framebuffer_create_info.attachmentCount = attachments.size();
 		framebuffer_create_info.pAttachments = attachments.data();
 		framebuffer_create_info.width = width_;
@@ -114,9 +73,8 @@ namespace renderer {
 		vkDestroyFramebuffer(rhi_.GetDevice()->GetDeviceHandle(), framebuffer_, nullptr);
 	}
 
-	VulkanRenderPass::VulkanRenderPass(rhi::VulkanRHI& in_rhi, const char* render_pass_name, const RenderPassDesc& desc,
-		EXEC_FUNC exec)
-		:RenderPass(render_pass_name, desc.is_for_present, exec), rhi_(in_rhi)
+	VulkanRenderPass::VulkanRenderPass(rhi::VulkanRHI& in_rhi, const RenderPass::Descriptor& desc)
+		:RenderPass(desc.is_for_present), rhi_(in_rhi)
 	{
 		CreateRenderPass(desc);
 	}
@@ -128,49 +86,56 @@ namespace renderer {
 		vkDestroyRenderPass(rhi_.GetDevice()->GetDeviceHandle(), render_pass_, nullptr);
 	}
 
-	void VulkanRenderPass::CreateRenderPass(RenderPassDesc desc)
+	void VulkanRenderPass::CreateRenderPass(RenderPass::Descriptor desc)
 	{
 		// TODO: Change this vector thing maybe
 		// color attachments descriptions
-		std::vector<VkAttachmentDescription> attachments{};
-		for (auto color_attachment : desc.color_attachments)
+		std::vector<VkAttachmentDescription>	attachments{};
+
+		VkAttachmentReference					depth_reference{};
+
+		for (const auto& attachment : desc.attachments)
 		{
 			VkAttachmentDescription attachment_description{};
-			attachment_description.format = (color_attachment.format == AttachmentFormat::SWAPCHAIN_FORMAT)?
-										     rhi_.GetViewport()->GetSwapChain()->GetImageFormat() : Utils::AttachmentFormatToVulkanFormat(color_attachment.format);
+			attachment_description.format = attachment.is_depth ? rhi_.GetDepthFormat() : VulkanUtils::MLEFormatToVkFormat(attachment.format);
 			attachment_description.samples = VK_SAMPLE_COUNT_1_BIT;
-			attachment_description.loadOp = Utils::AttachmentLoadOpToVulkanLoadOp(color_attachment.load_op);
-			attachment_description.storeOp = Utils::AttachmentStoreOpToVulkanLoadOp(color_attachment.store_op);
+			attachment_description.loadOp = attachment.is_depth? VK_ATTACHMENT_LOAD_OP_DONT_CARE : VulkanUtils::MLEFormatToVkFormat(attachment.load_op);
+			attachment_description.storeOp = attachment.is_depth ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VulkanUtils::MLEFormatToVkFormat(attachment.store_op);
+			attachment_description.stencilLoadOp = attachment.is_depth ? VulkanUtils::MLEFormatToVkFormat(attachment.load_op) : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			attachment_description.stencilStoreOp = attachment.is_depth ? VulkanUtils::MLEFormatToVkFormat(attachment.store_op) : VK_ATTACHMENT_STORE_OP_DONT_CARE;
 			attachment_description.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			attachment_description.finalLayout = Utils::ImageLayoutToVkImageLayout(color_attachment.final_layout);
+			attachment_description.finalLayout = VulkanUtils::ImageLayoutToVkImageLayout(attachment.final_layout);
+
+			if (attachment.is_depth)
+			{
+				depth_reference.attachment = attachments.size();
+				depth_reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			}
+
 			attachments.emplace_back(attachment_description);
 		}
 
-		if (desc.depth_stencil_attachment != nullptr)
+		if (desc.is_for_present)
 		{
-			// depth stencil attachment description
-			VkAttachmentDescription depth_stencil_attachment{};
-			depth_stencil_attachment.format = Utils::AttachmentFormatToVulkanFormat(desc.depth_stencil_attachment->format);
-			depth_stencil_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-			// depth data Load/Store Op
-			depth_stencil_attachment.loadOp = Utils::AttachmentLoadOpToVulkanLoadOp(desc.depth_stencil_attachment->load_op);
-			depth_stencil_attachment.storeOp = Utils::AttachmentStoreOpToVulkanLoadOp(desc.depth_stencil_attachment->store_op);
-			depth_stencil_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-			depth_stencil_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			depth_stencil_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			depth_stencil_attachment.finalLayout = Utils::ImageLayoutToVkImageLayout(desc.depth_stencil_attachment->final_layout);
-			attachments.emplace_back(depth_stencil_attachment);
-			delete desc.depth_stencil_attachment;
+			VkAttachmentDescription& attachment_description = attachments.emplace_back();
+			attachment_description.format = rhi_.GetSwapchainImageFormat();
+			attachment_description.samples = VK_SAMPLE_COUNT_1_BIT;
+			attachment_description.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+			attachment_description.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+			attachment_description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			attachment_description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			attachment_description.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			attachment_description.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 		}
 
 		// subpass description
 		std::vector<VkSubpassDescription> subpasses{};
-		// keep the pointers to VkAttachmentReference
-		// if you wanna know why i do this,
-		// i will explain it to you personally
+
+		std::vector<VkSubpassDependency> dependencies{};
+
 		std::vector<VkAttachmentReference*> input_refs{};
 		std::vector<VkAttachmentReference*> output_refs{};
-		for (auto subpass : desc.subpasses)
+		for (const auto& subpass : desc.subpasses)
 		{
 			VkSubpassDescription subpass_desc = {};
 			subpass_desc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -200,29 +165,43 @@ namespace renderer {
 
 			if (subpass.use_depth_stencil)
 			{
-				VkAttachmentReference depth_stencil = {};
-				depth_stencil.attachment = attachments.size() - 2;
-				depth_stencil.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-				subpass_desc.pDepthStencilAttachment = &depth_stencil;
+				subpass_desc.pDepthStencilAttachment = &depth_reference;
 			}
 
 			subpasses.push_back(subpass_desc);
+
+			for (auto dependency : subpass.dependencies)
+			{
+				auto& current = dependencies.emplace_back();
+				current.srcSubpass = dependency == std::numeric_limits<uint32_t>::max()? VK_SUBPASS_EXTERNAL : dependency;
+				current.dstSubpass = subpasses.size() - 1;
+				current.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+				current.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+				current.srcAccessMask = 0;
+				current.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			}
 		}
 
-		std::vector<VkSubpassDependency> dependencies{};
+		if (desc.is_for_present)
+		{
+			VkAttachmentReference* colorAttachmentRef = new VkAttachmentReference{};
+			colorAttachmentRef->attachment = subpasses.size();
+			colorAttachmentRef->layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			output_refs.emplace_back(colorAttachmentRef);
 
-		// temp
-		VkSubpassDependency dependency = {};
-		if (subpasses.size() == 1)
-			dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-		else
-			dependency.srcSubpass = subpasses.size() - 2;
-		dependency.dstSubpass = subpasses.size() - 1;
-		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		dependency.srcAccessMask = 0;
-		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		dependencies.emplace_back(dependency);
+			VkSubpassDescription& subpass = subpasses.emplace_back();
+			subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+			subpass.colorAttachmentCount = 1;
+			subpass.pColorAttachments = colorAttachmentRef;
+
+			VkSubpassDependency& dependency = dependencies.emplace_back();
+			dependency.srcSubpass = subpasses.size() == 1 ? VK_SUBPASS_EXTERNAL : subpasses.size() - 2;
+			dependency.dstSubpass = subpasses.size() - 1;
+			dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+			dependency.srcAccessMask = 0;
+			dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+			dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		}
 
 		VkRenderPassCreateInfo renderpass_create_info{};
 		renderpass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -240,11 +219,70 @@ namespace renderer {
 			MLE_CORE_ERROR("failed to create render pass, err:{0}", result);
 			throw std::runtime_error("failed to create render pass");
 		}
-		MLE_CORE_INFO("Vulkan Render Pass has been created");
+		MLE_CORE_INFO("[vulkan] Render Pass has been created");
 
-		if (is_for_present_)
+		if (desc.is_for_present)
 		{
-			SetupIMGUI(subpasses.size() - 1);
+			// Setup Dear ImGui context
+			IMGUI_CHECKVERSION();
+			ImGui::CreateContext();
+			ImGuiIO& io = ImGui::GetIO(); (void)io;
+			io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
+			//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+			io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+			io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+			//io.ConfigViewportsNoAutoMerge = true;
+			//io.ConfigViewportsNoTaskBarIcon = true;
+
+			// Setup Dear ImGui style
+			ImGui::StyleColorsDark();
+			//ImGui::StyleColorsClassic();
+
+			// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
+			ImGuiStyle& style = ImGui::GetStyle();
+			if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+			{
+				style.WindowRounding = 0.0f;
+				style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+			}
+
+			// Setup Platform/Renderer backends
+			engine::Application& app = engine::Application::GetApp();
+			GLFWwindow* window = static_cast<GLFWwindow*>(app.GetWindow().GetNativeWindow());
+			ImGui_ImplGlfw_InitForVulkan(window, true);
+			ImGui_ImplVulkan_InitInfo init_info = {};
+			init_info.Instance = rhi_.GetVkInstance();
+			init_info.PhysicalDevice = rhi_.GetDevice()->GetPhysicalHandle();
+			init_info.Device = rhi_.GetDevice()->GetDeviceHandle();
+			init_info.QueueFamily = rhi_.GetDevice()->GetGfxQueue()->GetFamilyIndex();
+			init_info.Queue = rhi_.GetDevice()->GetGfxQueue()->GetQueueHandle();
+			init_info.PipelineCache = VK_NULL_HANDLE;
+			init_info.DescriptorPool = rhi_.GetDevice()->GetDescriptorPool();
+			init_info.Subpass = subpasses.size() - 1;
+			init_info.MinImageCount = 2;
+			init_info.ImageCount = rhi_.GetViewport()->GetSwapChain()->GetSwapchainImageCount();
+			init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+			init_info.Allocator = nullptr;
+			init_info.CheckVkResultFn = check_vk_result;
+			ImGui_ImplVulkan_Init(&init_info, render_pass_);
+
+			// Load default font
+			ImFontConfig fontConfig;
+			fontConfig.FontDataOwnedByAtlas = false;
+			ImFont* robotoFont = io.Fonts->AddFontFromMemoryTTF((void*)g_RobotoRegular, sizeof(g_RobotoRegular), 20.0f, &fontConfig);
+			io.FontDefault = robotoFont;
+
+			// Upload Fonts
+			{
+				VkResult err = vkResetCommandPool(rhi_.GetDevice()->GetDeviceHandle(), rhi_.GetDevice()->GetCommandPool(), 0);
+				check_vk_result(err);
+				VkCommandBuffer command_buffer = rhi_.GetDevice()->BeginSingleTimeCommands();
+
+				ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+
+				rhi_.GetDevice()->EndSingleTimeCommands(command_buffer);
+				ImGui_ImplVulkan_DestroyFontUploadObjects();
+			}
 		}
 
 		// clean up
@@ -270,69 +308,5 @@ namespace renderer {
 		dependency.dstAccessMask =
 			VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
 		dependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-	}
-
-	void VulkanRenderPass::SetupIMGUI(uint32_t present_subpass_index)
-	{
-		// Setup Dear ImGui context
-		IMGUI_CHECKVERSION();
-		ImGui::CreateContext();
-		ImGuiIO& io = ImGui::GetIO(); (void)io;
-		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
-		//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
-		//io.ConfigViewportsNoAutoMerge = true;
-		//io.ConfigViewportsNoTaskBarIcon = true;
-
-		// Setup Dear ImGui style
-		ImGui::StyleColorsDark();
-		//ImGui::StyleColorsClassic();
-
-		// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
-		ImGuiStyle& style = ImGui::GetStyle();
-		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-		{
-			style.WindowRounding = 0.0f;
-			style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-		}
-
-		// Setup Platform/Renderer backends
-		engine::Application& app = engine::Application::GetApp();
-		GLFWwindow* window = static_cast<GLFWwindow*>(app.GetWindow().GetNativeWindow());
-		ImGui_ImplGlfw_InitForVulkan(window, true);
-		ImGui_ImplVulkan_InitInfo init_info = {};
-		init_info.Instance = rhi_.GetVkInstance();
-		init_info.PhysicalDevice = rhi_.GetDevice()->GetPhysicalHandle();
-		init_info.Device = rhi_.GetDevice()->GetDeviceHandle();
-		init_info.QueueFamily = rhi_.GetDevice()->GetGfxQueue()->GetFamilyIndex();
-		init_info.Queue = rhi_.GetDevice()->GetGfxQueue()->GetQueueHandle();
-		init_info.PipelineCache = VK_NULL_HANDLE;
-		init_info.DescriptorPool = rhi_.GetDevice()->GetDescriptorPool();
-		init_info.Subpass = present_subpass_index;
-		init_info.MinImageCount = 2;
-		init_info.ImageCount = rhi_.GetViewport()->GetSwapChain()->GetSwapchainImageCount();
-		init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-		init_info.Allocator = nullptr;
-		init_info.CheckVkResultFn = check_vk_result;
-		ImGui_ImplVulkan_Init(&init_info, render_pass_);
-
-		// Load default font
-		ImFontConfig fontConfig;
-		fontConfig.FontDataOwnedByAtlas = false;
-		ImFont* robotoFont = io.Fonts->AddFontFromMemoryTTF((void*)g_RobotoRegular, sizeof(g_RobotoRegular), 20.0f, &fontConfig);
-		io.FontDefault = robotoFont;
-
-		// Upload Fonts
-		{
-			VkResult err = vkResetCommandPool(rhi_.GetDevice()->GetDeviceHandle(), rhi_.GetDevice()->GetCommandPool(), 0);
-			check_vk_result(err);
-			VkCommandBuffer command_buffer = rhi_.GetDevice()->BeginSingleTimeCommands();
-
-			ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
-
-			rhi_.GetDevice()->EndSingleTimeCommands(command_buffer);
-			ImGui_ImplVulkan_DestroyFontUploadObjects();
-		}
 	}
 }

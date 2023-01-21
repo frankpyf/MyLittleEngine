@@ -4,19 +4,6 @@
 
 #include "EditorLayer.h"
 
-class ExampleLayer : public engine::Layer
-{
-public:
-	virtual void OnUIRender() override
-	{
-		ImGui::Begin("Hello");
-		ImGui::Button("Button");
-		ImGui::End();
-
-		ImGui::ShowDemoWindow();  
-	}
-};
-
 engine::Application* engine::CreateApplication(int argc, char** argv)
 {
 	engine::ApplicationSpecification spec;

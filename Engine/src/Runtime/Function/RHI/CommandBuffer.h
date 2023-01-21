@@ -1,17 +1,17 @@
 #pragma once
+#include "Descriptor.h"
 struct ImDrawData;
 
-namespace renderer {
+namespace rhi {
     class RenderTarget;
     class RenderPass;
-    class Pipeline;
-    class RHIBuffer;
-}
 
-namespace rhi {
-    class RHIBuffer;
-    class RHIVertexBuffer;
+    struct RHIBuffer;
+    struct RHIPipeline;
+    struct PipelineLayout;
+
     class RHITexture2D;
+
 
     struct CopyBufferToBufferDesc
     {
@@ -37,14 +37,17 @@ namespace rhi {
         virtual ~RHIGraphicsEncoder() = default;
 
         
-        virtual void BeginRenderPass(renderer::RenderPass& pass,
-                                     renderer::RenderTarget& render_target) = 0;
-        virtual void BindGfxPipeline(renderer::Pipeline* pipeline) = 0;
-        virtual void BindVertexBuffers(uint32_t first_binding, uint32_t binding_count, rhi::RHIVertexBuffer** buffer, uint64_t* offsets) = 0;
+        virtual void BeginRenderPass(RenderPass& pass, RenderTarget& render_target) = 0;
+        virtual void BindGfxPipeline(RHIPipeline* pipeline) = 0;
+        virtual void BindVertexBuffers(uint32_t first_binding, uint32_t binding_count, RHIBuffer** buffer, uint64_t* offsets) = 0;
+        virtual void BindIndexBuffer(RHIBuffer* index_buffer, uint64_t offset) = 0;
+        virtual void BindDescriptorSets(PipelineLayout* layout, uint32_t first_set, uint32_t sets_count, DescriptorSet** sets, uint32_t dynameic_offset_count, const uint32_t* dynamic_offsets) = 0;
+        
         virtual void SetViewport(float x, float y, float width, float height, float min_depth, float max_depth) = 0;
         virtual void SetScissor(int32_t offset_x, int32_t offset_y, uint32_t width, uint32_t height) = 0;
 
         virtual void Draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) = 0;
+        virtual void DrawIndexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t offset, uint32_t first_instance) = 0;
 
         virtual void NextSubpass() {};
 

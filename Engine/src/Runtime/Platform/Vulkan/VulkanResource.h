@@ -12,7 +12,7 @@ namespace rhi {
 	{
 		friend class VulkanTransferEncoder;
 	public:
-		VulkanTexture2D(VulkanRHI& in_rhi, uint32_t width, uint32_t height, PixelFormat in_format, uint32_t miplevels);
+		VulkanTexture2D(VulkanRHI& in_rhi, const RHITexture2D::Descriptor& desc);
 		VulkanTexture2D(VulkanRHI& in_rhi, std::string_view path, uint32_t miplevels);
 		virtual ~VulkanTexture2D();
 
@@ -29,58 +29,55 @@ namespace rhi {
 		virtual void Resize(uint32_t width, uint32_t height) override;
 		virtual void* GetView() override { return (void*)image_view_; };
 	private:
-		void AllocateMemory(uint64_t size, VkImageUsageFlags usage);
+		void AllocateMemory(VkImageUsageFlags usage);
 		void Release();
 	private:
-		VkImage        image_ = nullptr;
-		VkImageView    image_view_ = nullptr;
-		PixelFormat format_ = PixelFormat::Unknown;
-		VkSampler sampler_ = nullptr;
+		VulkanRHI& rhi_;
+
+		VkImage			image_ = nullptr;
+		VkImageView		image_view_ = nullptr;
+		VkSampler		sampler_ = nullptr;
+		VkFormat		vk_format_;
+
+		VkImageUsageFlags vk_usage_ = 0;
 
 		VkDescriptorSet descriptor_set_ = nullptr;
 
 		// According to the docs, VmaAllocation represents its underlying memory
 		// Since we use vma, it seems that VkDeviceMemory is no longer needed
 		VmaAllocation image_allocation_;
-		
-		uint32_t miplevels_ = 1;
-
-		VulkanRHI& rhi_;
 	};
 
-	class VulkanBufferBase
-	{
-		friend class VulkanTransferEncoder;
-	public:
-		VulkanBufferBase(VulkanRHI& in_rhi)
-			:rhi_(in_rhi) {};
-		virtual ~VulkanBufferBase();
+	// ---------------------------------------------------
 
-	protected:
-		VkBuffer buffer_ = VK_NULL_HANDLE;
-		VmaAllocation buffer_allocation_;
-		
-		VulkanRHI& rhi_;
-	};
-
-	class VulkanVertexBuffer : public RHIVertexBuffer, public VulkanBufferBase
+	struct VulkanBuffer : public RHIBuffer
 	{
-		friend class VulkanGraphicsEncoder;
-	public:
-		VulkanVertexBuffer(VulkanRHI& in_rhi, uint64_t size);
-		virtual ~VulkanVertexBuffer() = default;
-		virtual void* GetHandle() override { return (void*)buffer_; };
-	};
+		VkBuffer buffer = VK_NULL_HANDLE;
+		VmaAllocation buffer_allocation = VK_NULL_HANDLE;
+		VmaAllocationInfo alloc_info;
 
-	class VulkanStagingBuffer : public RHIStagingBuffer, public VulkanBufferBase
-	{
-	public:
-		VulkanStagingBuffer(VulkanRHI& in_rhi, uint64_t size);
-		virtual ~VulkanStagingBuffer();
-		virtual void* GetHandle() override { return (void*)buffer_; };
+		VkDescriptorBufferInfo buffer_info;
+
 		virtual void SetData(const void* data, uint64_t size) override;
-	private:
-		VkDeviceMemory staging_buffer_memory_;
+	};
+
+	// ---------------------------------------------------
+
+	struct VulkanShaderModule : public ShaderModule
+	{
+		VkShaderModule shader_module;
+	};
+
+	struct VulkanPipelineLayout : public PipelineLayout
+	{
+		VkPipelineLayout pipeline_layout;
+	};
+
+	struct VulkanPipeline : public RHIPipeline
+	{
+		VkPipeline pipeline;
+		VkShaderModule vert_shader;
+		VkShaderModule frag_shader;
 	};
 }
 

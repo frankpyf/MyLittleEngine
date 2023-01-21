@@ -1,9 +1,9 @@
 #include "mlepch.h"
 #include "VulkanCommandBuffer.h"
 #include "VulkanDevice.h"
-#include "Runtime/Function/Renderer/RenderPass.h"
-#include "Runtime/Function/Renderer/Pipeline.h"
+#include "Runtime/Function/RHI/RenderPass.h"
 #include "VulkanResource.h"
+#include "VulkanDescriptor.h"
 
 #include <imgui.h>
 #include "backends/imgui_impl_vulkan.h"
@@ -51,8 +51,7 @@ namespace rhi {
 		};
 	}
 	//------------------------------------Gfx Encoder------------------------------------
-	void VulkanGraphicsEncoder::BeginRenderPass(renderer::RenderPass& pass,
-										        renderer::RenderTarget& render_target)
+	void VulkanGraphicsEncoder::BeginRenderPass(RenderPass& pass, RenderTarget& render_target)
 	{
 		VkClearValue clear_color{};
 		clear_color.color.float32[0] = render_target.GetClearColor().r * render_target.GetClearColor().a;
@@ -72,22 +71,41 @@ namespace rhi {
 		vkCmdBeginRenderPass(command_buffer_, &info, VK_SUBPASS_CONTENTS_INLINE);
 	}
 
-	void VulkanGraphicsEncoder::BindGfxPipeline(renderer::Pipeline* pipeline)
+	void VulkanGraphicsEncoder::BindGfxPipeline(RHIPipeline* pipeline)
 	{
-		vkCmdBindPipeline(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline)pipeline->GetHandle());
+		VulkanPipeline* vk_pipeline = static_cast<VulkanPipeline*>(pipeline);
+		vkCmdBindPipeline(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline->pipeline);
 	}
 
-	void VulkanGraphicsEncoder::BindVertexBuffers(uint32_t first_binding, uint32_t binding_count, rhi::RHIVertexBuffer** buffer, uint64_t* offsets)
+	void VulkanGraphicsEncoder::BindVertexBuffers(uint32_t first_binding, uint32_t binding_count, rhi::RHIBuffer** buffer, uint64_t* offsets)
 	{
-		VulkanVertexBuffer** vb = (VulkanVertexBuffer**)buffer;
+		VulkanBuffer** vb = (VulkanBuffer**)buffer;
 		VkBuffer vbs_vk[64];
 		VkDeviceSize offsets_vk[64];
 		for (uint32_t i = 0; i < binding_count; ++i)
 		{
-			vbs_vk[i] = vb[i]->buffer_;
+			vbs_vk[i] = vb[i]->buffer;
 			offsets_vk[i] = offsets ? offsets[i] : 0;
 		}
 		vkCmdBindVertexBuffers(command_buffer_, first_binding, binding_count, vbs_vk, offsets_vk);
+	}
+
+	void VulkanGraphicsEncoder::BindIndexBuffer(rhi::RHIBuffer* index_buffer, uint64_t offset)
+	{
+		VulkanBuffer* vk_buffer = (VulkanBuffer*)index_buffer;
+		vkCmdBindIndexBuffer(command_buffer_, vk_buffer->buffer, offset, VK_INDEX_TYPE_UINT16);
+	}
+
+	void VulkanGraphicsEncoder::BindDescriptorSets(PipelineLayout* layout, uint32_t first_set, uint32_t sets_count, DescriptorSet** sets, uint32_t dynameic_offset_count, const uint32_t* dynamic_offsets)
+	{
+		VulkanPipelineLayout* vk_layout = static_cast<VulkanPipelineLayout*>(layout);
+		VulkanDescriptorSet** vk_sets = (VulkanDescriptorSet**)sets;
+		VkDescriptorSet sets_vk[64];
+		for (uint32_t i = 0; i < sets_count; ++i)
+		{
+			sets_vk[i] = vk_sets[i]->descriptor_set;
+		}
+		vkCmdBindDescriptorSets(command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_layout->pipeline_layout, first_set, sets_count, sets_vk, dynameic_offset_count, dynamic_offsets);
 	}
 
 	void VulkanGraphicsEncoder::SetViewport(float x, float y, float width, float height, float min_depth, float max_depth)
@@ -113,6 +131,11 @@ namespace rhi {
 		vkCmdDraw(command_buffer_, vertex_count, instance_count, first_vertex, first_instance);
 	}
 
+	void VulkanGraphicsEncoder::DrawIndexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t offset, uint32_t first_instance)
+	{
+		vkCmdDrawIndexed(command_buffer_, index_count, instance_count, first_index, offset, first_instance);
+	}
+
 	void VulkanGraphicsEncoder::NextSubpass()
 	{
 		vkCmdNextSubpass(command_buffer_, VK_SUBPASS_CONTENTS_INLINE);
@@ -130,14 +153,14 @@ namespace rhi {
 		assert(desc.dst != nullptr && "fatal:destination buffer is NULL");
 		assert(desc.src != nullptr && "fatal:source buffer is NULL");
 
-		rhi::RHIBuffer* src = (rhi::RHIBuffer*)desc.src;
-		rhi::RHIBuffer* dst = (rhi::RHIBuffer*)desc.dst;
+		VulkanBuffer* src = (VulkanBuffer*)desc.src;
+		VulkanBuffer* dst = (VulkanBuffer*)desc.dst;
 
 		VkBufferCopy copyRegion{};
 		copyRegion.srcOffset = desc.src_offset;
 		copyRegion.dstOffset = desc.src_offset;
 		copyRegion.size = desc.size;
-		vkCmdCopyBuffer(command_buffer_, (VkBuffer)src->GetHandle(), (VkBuffer)dst->GetHandle(), 1, &copyRegion);
+		vkCmdCopyBuffer(command_buffer_,  src->buffer, dst->buffer, 1, &copyRegion);
 	}
 
 	void VulkanTransferEncoder::CopyBufferToImage(RHIBuffer* buffer,
@@ -150,7 +173,7 @@ namespace rhi {
 		assert(image != nullptr && "fatal:image is NULL");
 
 		VulkanTexture2D* image_vk = (VulkanTexture2D*)image;
-		VulkanBufferBase* buffer_vk = (VulkanBufferBase*)buffer;
+		VulkanBuffer* buffer_vk = (VulkanBuffer*)buffer;
 
 		VkBufferImageCopy region{};
 		region.bufferOffset = 0;
@@ -163,7 +186,7 @@ namespace rhi {
 		region.imageOffset = { 0, 0, 0 };
 		region.imageExtent = { width, height, 1 };
 
-		vkCmdCopyBufferToImage(command_buffer_, buffer_vk->buffer_, image_vk->image_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+		vkCmdCopyBufferToImage(command_buffer_, buffer_vk->buffer, image_vk->image_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 	}
 
 	//------------------------------------Cmd Buffer----------------------------------------

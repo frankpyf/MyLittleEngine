@@ -30,7 +30,13 @@ namespace rhi {
         vkBindBufferMemory(device->GetDeviceHandle(), buffer, bufferMemory, 0);
     }
 
-    void VulkanUtils::VMACreateBuffer(const VmaAllocator& allocator, VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer& buffer, VmaAllocation& buffer_allocation)
+    void VulkanUtils::VMACreateBuffer(const VmaAllocator& allocator, 
+        VkDeviceSize size, 
+        VkBufferUsageFlags usage, 
+        VkBuffer& buffer, 
+        VmaAllocation& buffer_allocation, 
+        VmaAllocationInfo* alloc_info,
+        VmaAllocationCreateInfo& vma_info)
     {
         VkBufferCreateInfo bufferInfo{};
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -38,22 +44,20 @@ namespace rhi {
         bufferInfo.usage = usage;
         bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        VmaAllocationCreateInfo allocInfo = {};
-        allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        VkResult result = vmaCreateBuffer(allocator, &bufferInfo, &vma_info, &buffer, &buffer_allocation, alloc_info);
 
-        vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &buffer, &buffer_allocation, nullptr);
     }
 
-    void VulkanUtils::VMACreateImage(VmaAllocator& allocator,
+    void VulkanUtils::VMACreateImage(VmaAllocator&         allocator,
                                      uint32_t              image_width,
                                      uint32_t              image_height,
                                      VkFormat              format,
                                      VkImageTiling         image_tiling,
                                      VkImageUsageFlags     image_usage_flags,
-                                     VkImage& image,
+                                     VkImage&              image,
                                      uint32_t              array_layers,
                                      uint32_t              miplevels,
-                                     VmaAllocation& image_allocation)
+                                     VmaAllocation&        image_allocation)
     {
         // use the vmaAllocator to allocate asset texture image
         VkImageCreateInfo image_create_info{};
@@ -71,9 +75,9 @@ namespace rhi {
         image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
         image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        // TODO: SUPPORT LAZILY ALLOCATED
         VmaAllocationCreateInfo allocInfo = {};
-        allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        allocInfo.usage = image_usage_flags & VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT ? VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED
+                                                                                       : VMA_MEMORY_USAGE_GPU_ONLY;
         
         VkResult result = vmaCreateImage(allocator, &image_create_info, &allocInfo, &image, &image_allocation, NULL);
         if ( result != VK_SUCCESS)
@@ -200,16 +204,6 @@ namespace rhi {
             VK_IMAGE_TILING_OPTIMAL,
             VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
         );
-    }
-
-    VkFormat VulkanUtils::PixelFormatToVulkanFormat(PixelFormat format)
-    {
-        switch (format)
-        {
-        case PixelFormat::RGBA: return VK_FORMAT_R8G8B8A8_UNORM;
-        case PixelFormat::RGBA32F:return VK_FORMAT_R32G32B32A32_SFLOAT;
-        default:return (VkFormat)0;
-        }
     }
 
     void VulkanUtils::TransitionImageLayout(VulkanDevice* in_device,
@@ -346,6 +340,90 @@ namespace rhi {
         if (vkCreateSampler(device, &samplerInfo, nullptr, &sampler) != VK_SUCCESS)
         {
             throw std::runtime_error("vk create sampler");
+        }
+    }
+
+    VkFormat VulkanUtils::MLEFormatToVkFormat(rhi::PixelFormat format)
+    {
+        switch (format)
+        {
+        case rhi::PixelFormat::RGBA8: return VK_FORMAT_R8G8B8A8_UNORM;
+        case rhi::PixelFormat::RGBA32F:return VK_FORMAT_R32G32B32A32_SFLOAT;
+        default:return (VkFormat)0;
+        }
+    };
+
+    VkAttachmentLoadOp VulkanUtils::MLEFormatToVkFormat(rhi::RenderPass::AttachmentDesc::LoadOp in_op)
+    {
+        switch (in_op)
+        {
+        case rhi::RenderPass::AttachmentDesc::LoadOp::LOAD: return VK_ATTACHMENT_LOAD_OP_LOAD;
+        case rhi::RenderPass::AttachmentDesc::LoadOp::CLEAR:return VK_ATTACHMENT_LOAD_OP_CLEAR;
+        case rhi::RenderPass::AttachmentDesc::LoadOp::DONT_CARE:return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        default:return (VkAttachmentLoadOp)0;
+        }
+    }
+
+    VkAttachmentStoreOp VulkanUtils::MLEFormatToVkFormat(rhi::RenderPass::AttachmentDesc::StoreOp in_op)
+    {
+        switch (in_op)
+        {
+        case rhi::RenderPass::AttachmentDesc::StoreOp::STORE:return VK_ATTACHMENT_STORE_OP_STORE;
+        case rhi::RenderPass::AttachmentDesc::StoreOp::DONT_CARE:return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        default:return (VkAttachmentStoreOp)0;
+        }
+    }
+
+    VkDescriptorType VulkanUtils::MLEFormatToVkFormat(DescriptorType& in_type)
+    {
+#define MLE_DESC_TYPE_TO_VK_DESC_TYPE(type) case type: return VK_##type;
+        switch (in_type)
+        {
+            MLE_DESC_TYPE_TO_VK_DESC_TYPE(DESCRIPTOR_TYPE_SAMPLER);
+            MLE_DESC_TYPE_TO_VK_DESC_TYPE(DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+            MLE_DESC_TYPE_TO_VK_DESC_TYPE(DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+            MLE_DESC_TYPE_TO_VK_DESC_TYPE(DESCRIPTOR_TYPE_STORAGE_IMAGE);
+            MLE_DESC_TYPE_TO_VK_DESC_TYPE(DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER);
+            MLE_DESC_TYPE_TO_VK_DESC_TYPE(DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER);
+            MLE_DESC_TYPE_TO_VK_DESC_TYPE(DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+            MLE_DESC_TYPE_TO_VK_DESC_TYPE(DESCRIPTOR_TYPE_STORAGE_BUFFER);
+            MLE_DESC_TYPE_TO_VK_DESC_TYPE(DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC);
+            MLE_DESC_TYPE_TO_VK_DESC_TYPE(DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC);
+            MLE_DESC_TYPE_TO_VK_DESC_TYPE(DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
+        }
+        return VK_DESCRIPTOR_TYPE_MAX_ENUM;
+    }
+
+    VkShaderStageFlags VulkanUtils::MLEFormatToVkFormat(ShaderStage& in_stage)
+    {
+#define MLE_DESC_STAGE_TO_VK_DESC_STAGE(stage) case stage: return VK_##stage;
+        switch (in_stage)
+        {
+            MLE_DESC_STAGE_TO_VK_DESC_STAGE(SHADER_STAGE_VERTEX_BIT);
+            MLE_DESC_STAGE_TO_VK_DESC_STAGE(SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+            MLE_DESC_STAGE_TO_VK_DESC_STAGE(SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+            MLE_DESC_STAGE_TO_VK_DESC_STAGE(SHADER_STAGE_GEOMETRY_BIT);
+            MLE_DESC_STAGE_TO_VK_DESC_STAGE(SHADER_STAGE_FRAGMENT_BIT);
+            MLE_DESC_STAGE_TO_VK_DESC_STAGE(SHADER_STAGE_COMPUTE_BIT);
+            MLE_DESC_STAGE_TO_VK_DESC_STAGE(SHADER_STAGE_ALL_GRAPHICS);
+            MLE_DESC_STAGE_TO_VK_DESC_STAGE(SHADER_STAGE_ALL);
+        }
+        return VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
+    }
+
+
+    VkImageLayout VulkanUtils::ImageLayoutToVkImageLayout(rhi::ImageLayout in_layout)
+    {
+        switch (in_layout)
+        {
+        case rhi::ImageLayout::IMAGE_LAYOUT_UNDEFINED:return VK_IMAGE_LAYOUT_UNDEFINED;
+        case rhi::ImageLayout::IMAGE_LAYOUT_GENERAL:return VK_IMAGE_LAYOUT_GENERAL;
+        case rhi::ImageLayout::IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        case rhi::ImageLayout::IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        case rhi::ImageLayout::IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+        case rhi::ImageLayout::IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        case rhi::ImageLayout::IMAGE_LAYOUT_PRESENT:return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        default:return (VkImageLayout)0;
         }
     }
 }

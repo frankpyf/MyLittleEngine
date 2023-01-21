@@ -1,6 +1,7 @@
 #include "mlepch.h"
 #include "FrameResource.h"
 #include "Runtime/Function/RHI/RHI.h"
+#include "Runtime/Resource/Vertex.h"
 
 namespace renderer {
 	void FrameResourceMngr::CreateFrames()
@@ -12,6 +13,15 @@ namespace renderer {
 			frame_[index].in_flight_fence = rhi.RHICreateFence();
 			frame_[index].image_acquired_semaphore = rhi.RHICreateSemaphore();
 			frame_[index].render_finished_semaphore = rhi.RHICreateSemaphore();
+
+			rhi::RHIBuffer::Descriptor buffer_desc{};
+			buffer_desc.size = sizeof(resource::UniformBufferObject);
+			buffer_desc.mapped_at_creation = true;
+			buffer_desc.memory_usage = MemoryUsage::MEMORY_USAGE_CPU_TO_GPU;
+			buffer_desc.usage = ResourceTypes::RESOURCE_TYPE_UNIFORM_BUFFER;
+			frame_[index].global_ubo = rhi.RHICreateBuffer(buffer_desc);
+
+			frame_[index].global_set = rhi.CreateDescriptorSet();
 		}
 	}
 
@@ -22,22 +32,28 @@ namespace renderer {
 		{
 			if (frame_[index].command_buffer)
 				delete frame_[index].command_buffer;
-			for (auto& rt : frame_[index].render_targets)
-			{
-				if (rt)
-					delete rt;
-			}
-			frame_[index].render_targets.clear();
 
 			rhi.RHIDestroyFence(frame_[index].in_flight_fence);
 			rhi.RHIDestroySemaphore(frame_[index].image_acquired_semaphore);
 			rhi.RHIDestroySemaphore(frame_[index].render_finished_semaphore);
+
+			frame_[index].texture_dump.clear();
+			frame_[index].render_target_dump.clear();
 		}
 	}
 
 	FrameResource& FrameResourceMngr::BeginFrame()
 	{
 		rhi::RHI& rhi = rhi::RHI::GetRHIInstance();
+		// TEMP: will come up with a better gc strategy
+		for (auto& frame : frame_)
+		{
+			if (rhi.RHIIsFenceReady(frame.in_flight_fence))
+			{
+				frame.texture_dump.clear();
+				frame.render_target_dump.clear();
+			}
+		}
 		current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 		rhi::Fence* fences[1] = { frame_[current_frame].in_flight_fence };
 		rhi.RHIWaitForFences(fences, 1);
@@ -45,13 +61,6 @@ namespace renderer {
 		rhi.AcquireNextImage(frame_[current_frame].image_acquired_semaphore);
 
 		frame_[current_frame].command_buffer->Begin();
-		// Since we need to recreate rts each frame, so ...
-		for (auto& rt : frame_[current_frame].render_targets)
-		{
-			delete rt;
-		}
-		// reserve the capability though
-		frame_[current_frame].render_targets.clear();
 
 		return frame_[current_frame];
 	}
@@ -60,5 +69,13 @@ namespace renderer {
 	{
 		frame_[current_frame].command_buffer->End();
 		return frame_[current_frame];
+	}
+
+	void FrameResourceMngr::Clean()
+	{
+		for (auto& frame : frame_)
+		{
+			
+		}
 	}
 }

@@ -4,35 +4,51 @@ project "Runtime"
    cppdialect "C++17"
    targetdir "bin/%{cfg.buildcfg}"
    staticruntime "off"
-
-   files { "src/**.h", "src/**.cpp", "src/**.hpp" }
+   
+   targetdir ("bin/" .. outputdir .. "/%{prj.name}")
+   objdir ("../bin-int/" .. outputdir .. "/%{prj.name}")
 
    pchheader "mlepch.h"
    pchsource "src/mlepch.cpp"
 
+   files 
+   { 
+      "src/**.h", "src/**.cpp", "src/**.hpp" ,
+      
+      "../vendor/stb_image/**.h",
+      "../vendor/stb_image/**.cpp",
+      "../vendor/glm/glm/**.hpp",
+      "../vendor/glm/glm/**.inl",
+
+      "../vendor/ImGuizmo/ImGuizmo.h",
+      "../vendor/ImGuizmo/ImGuizmo.cpp"
+   }
+   
    includedirs
    {
       "src",
       "../vendor/imgui",
-      "../vendor/GLFW/include",
       "../vendor/stb_image",
       "../vendor/vma",
 
       "%{IncludeDir.VulkanSDK}",
+		"%{IncludeDir.glfw}",
       "%{IncludeDir.glm}",
-      "%{IncludeDir.spdlog}"
+      "%{IncludeDir.spdlog}",
+      "%{IncludeDir.ImGuizmo}",
+      "%{IncludeDir.entt}"
    }
 
    links
    {
-       "ImGui",
-       "GLFW",
+      "ImGui",
+      "GLFW",
 
-       "%{Library.Vulkan}",
+      "%{Library.Vulkan}",
    }
 
-   targetdir ("bin/" .. outputdir .. "/%{prj.name}")
-   objdir ("../bin-int/" .. outputdir .. "/%{prj.name}")
+   filter "files:../vendor/ImGuizmo/**.cpp"
+	flags { "NoPCH" }
 
    filter "system:windows"
       systemversion "latest"
