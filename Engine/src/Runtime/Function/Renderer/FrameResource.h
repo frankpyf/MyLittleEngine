@@ -1,6 +1,8 @@
 #pragma once
-#include "RenderPass.h"
+#include "Runtime/Function/RHI/RenderPass.h"
 #include "Runtime/Function/RHI/CommandBuffer.h"
+#include "Runtime/Function/RHI/RHIResource.h"
+#include "Runtime/Function/RHI/Descriptor.h"
 
 namespace rhi {
 	class RHI;
@@ -14,14 +16,18 @@ namespace renderer {
 	struct FrameResource
 	{
 		// graphics, compute and transfer 
-		rhi::CommandBuffer* command_buffer;
-		// all the render targets one frame needs
-		std::vector<RenderTarget*> render_targets;
+		rhi::CommandBuffer* command_buffer = nullptr;
 
 		//Sync Objects
-		rhi::Fence* in_flight_fence;
-		rhi::Semaphore* render_finished_semaphore;
-		rhi::Semaphore* image_acquired_semaphore;
+		rhi::Fence* in_flight_fence = nullptr;
+		rhi::Semaphore* render_finished_semaphore = nullptr;
+		rhi::Semaphore* image_acquired_semaphore = nullptr;
+
+		rhi::BufferRef		global_ubo;
+		rhi::DescriptorSet* global_set = nullptr;
+
+		std::vector<std::shared_ptr<rhi::RHITexture2D>> texture_dump;
+		std::vector<std::shared_ptr<rhi::RenderTarget>> render_target_dump;
 	};
 
 	class FrameResourceMngr
@@ -36,9 +42,12 @@ namespace renderer {
 		inline FrameResource& GetCurrentFrame() { return frame_[current_frame]; };
 
 		FrameResource& EndFrame();
+
+		void Clean();
 	private:
 		FrameResource frame_[MAX_FRAMES_IN_FLIGHT];
 		uint8_t current_frame = 0;
+
 	};	
 }
 

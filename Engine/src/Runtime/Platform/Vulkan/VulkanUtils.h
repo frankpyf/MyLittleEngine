@@ -1,20 +1,26 @@
 #pragma once
 #include <vulkan/vulkan.h>
 #include "vk_mem_alloc.h"
+#include "Runtime/Function/RHI/RenderPass.h"
+#include "Runtime/Function/RHI/Enum.h"
+
 namespace rhi {
 	class RHI;
-	enum class PixelFormat;
+	enum class PixelFormat : uint8_t;
 	class VulkanDevice;
 
 	class VulkanUtils
 	{
 	public:
 		static void CreateBuffer(VulkanDevice* device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+		
 		static void VMACreateBuffer(const VmaAllocator& allocator,
 									VkDeviceSize size, 
 									VkBufferUsageFlags usage,
 									VkBuffer& buffer,
-									VmaAllocation& buffer_allocation);
+									VmaAllocation& buffer_allocation,
+									VmaAllocationInfo* alloc_info, 
+									VmaAllocationCreateInfo&  vma_info);
 		static void VMACreateImage(VmaAllocator& allocator,
 								   uint32_t              image_width,
 								   uint32_t              image_height,
@@ -70,7 +76,17 @@ namespace rhi {
 											const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 		static VkFormat FindDepthFormat(const VkPhysicalDevice& physical_device);
 		static uint32_t FindMemoryType(const VkPhysicalDevice& physical_device, uint32_t type_filter, VkMemoryPropertyFlags properties_flag);
-		static VkFormat PixelFormatToVulkanFormat(PixelFormat format);
+
+		static VkFormat MLEFormatToVkFormat(rhi::PixelFormat format);
+		static VkAttachmentLoadOp MLEFormatToVkFormat(rhi::RenderPass::AttachmentDesc::LoadOp in_op);
+
+		static VkAttachmentStoreOp MLEFormatToVkFormat(rhi::RenderPass::AttachmentDesc::StoreOp in_op);
+
+		static VkDescriptorType MLEFormatToVkFormat(DescriptorType& in_type);
+
+		static VkShaderStageFlags MLEFormatToVkFormat(ShaderStage& in_stage);
+
+		static VkImageLayout ImageLayoutToVkImageLayout(rhi::ImageLayout in_layout);
 	};
 }
 

@@ -5,31 +5,55 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-
-namespace rhi {
-    namespace Utils {
-        static uint32_t BytesPerPixel(PixelFormat format)
-        {
-            switch (format)
-            {
-            case PixelFormat::RGBA:    return 4;
-            case PixelFormat::RGBA32F: return 16;
-            }
-            return 0;
-        }
-    }
-
-    VulkanTexture2D::VulkanTexture2D(VulkanRHI& in_rhi, uint32_t width, uint32_t height, PixelFormat in_format, uint32_t miplevels)
-        :RHITexture2D(width, height), miplevels_(miplevels), format_(in_format), rhi_(in_rhi)
+namespace Utils {
+    static uint32_t BytesPerPixel(VkFormat format)
     {
-        VkFormat format = VulkanUtils::PixelFormatToVulkanFormat(format_);
-        VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-       
-        AllocateMemory(width_ * height_ * Utils::BytesPerPixel(format_), usage);
+        switch (format)
+        {
+        case VK_FORMAT_R8G8B8A8_UNORM:      return 4;
+        case VK_FORMAT_R32G32B32A32_SFLOAT: return 16;
+        }
+        return 0;
+    }
+}
+namespace rhi {
+    
+
+    VulkanTexture2D::VulkanTexture2D(VulkanRHI& in_rhi, const RHITexture2D::Descriptor& desc)
+        :RHITexture2D(desc.width, desc.height, desc.miplevels, desc.format, desc.usage),
+        rhi_(in_rhi),
+        vk_format_(format_ == PixelFormat::DEPTH? rhi_.GetDepthFormat() : VulkanUtils::MLEFormatToVkFormat(format_))
+    {
+        if (EnumHasFlag(usage_,  TextureUsage::TRANSIENT_ATTACHMENT))
+        {
+            vk_usage_ |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+        }
+        if (EnumHasFlag(usage_, TextureUsage::COLOR_ATTACHMENT))
+        {
+            vk_usage_ |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        }
+        if (EnumHasFlag(usage_, TextureUsage::DEPTH_ATTACHMENT))
+        {
+            vk_usage_ |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        }
+        if (EnumHasFlag(usage_, TextureUsage::STENCIL_ATTACHMENT))
+        {
+            vk_usage_ |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        }
+        if (EnumHasFlag(usage_, TextureUsage::UPLOADABLE))
+        {
+            vk_usage_ |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;;
+        }
+        if (EnumHasFlag(usage_, TextureUsage::SAMPLEABLE))
+        {
+            vk_usage_ |= VK_IMAGE_USAGE_SAMPLED_BIT;
+        }
+
+        AllocateMemory(vk_usage_);
     }
 
 	VulkanTexture2D::VulkanTexture2D(VulkanRHI& in_rhi, std::string_view path, uint32_t miplevels)
-        :RHITexture2D(path), miplevels_(miplevels), rhi_(in_rhi)
+        :RHITexture2D(path, miplevels), rhi_(in_rhi)
 	{
         int width, height, channels;
         void* data = nullptr;
@@ -42,18 +66,19 @@ namespace rhi {
         else
         {
             data = stbi_load(file_path_.c_str(), &width, &height, &channels, 4);
-            format_ = PixelFormat::RGBA;
+            format_ = PixelFormat::RGBA8;
         }
 
         width_ = width;
         height_ = height;
+        vk_format_ = VulkanUtils::MLEFormatToVkFormat(format_);
 
         if (!data) {
             throw std::runtime_error("failed to load texture image!");
         }
 
-        VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-        AllocateMemory(width_ * height_ * Utils::BytesPerPixel(format_), usage);
+        vk_usage_ = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        AllocateMemory(vk_usage_);
 
         SetData(data);
 
@@ -65,23 +90,35 @@ namespace rhi {
         Release();
     }
 
-    void VulkanTexture2D::AllocateMemory(uint64_t size, VkImageUsageFlags usage)
+    void VulkanTexture2D::AllocateMemory(VkImageUsageFlags usage)
     {
-        //Create Image
         VulkanUtils::VMACreateImage(rhi_.allocator_, width_, height_,
-            VulkanUtils::PixelFormatToVulkanFormat(format_),
+            vk_format_,
             VK_IMAGE_TILING_OPTIMAL,
             usage,
             image_,
             1,
-            miplevels_,
+            miplevel_,
             image_allocation_);
-        image_view_ = VulkanUtils::CreateImageView((VkDevice)rhi_.GetNativeDevice(), image_,
-                                                   VulkanUtils::PixelFormatToVulkanFormat(format_),
-                                                   VK_IMAGE_ASPECT_COLOR_BIT,
-                                                   VK_IMAGE_VIEW_TYPE_2D,
-                                                   1,
-                                                   miplevels_);
+
+        // Create Image View
+        VkImageViewCreateInfo image_view_create_info{};
+        image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        image_view_create_info.image = image_;
+        image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        image_view_create_info.format = vk_format_;
+        image_view_create_info.subresourceRange.aspectMask = format_ == PixelFormat::DEPTH ? VK_IMAGE_ASPECT_DEPTH_BIT
+                                                                                           : VK_IMAGE_ASPECT_COLOR_BIT;
+        image_view_create_info.subresourceRange.baseMipLevel = 0;
+        image_view_create_info.subresourceRange.levelCount = miplevel_;
+        image_view_create_info.subresourceRange.baseArrayLayer = 0;
+        image_view_create_info.subresourceRange.layerCount = 1;
+
+        if (vkCreateImageView(rhi_.GetDevice()->GetDeviceHandle(), &image_view_create_info, nullptr, &image_view_) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create image view!");
+        }
+
         VulkanUtils::CreateLinearSampler((VkDevice)rhi_.GetNativeDevice(),
                                          (VkPhysicalDevice)rhi_.GetNativePhysicalDevice(),
                                           sampler_);
@@ -101,7 +138,7 @@ namespace rhi {
 
     void VulkanTexture2D::SetData(const void* data)
     {
-        VkDeviceSize image_size = width_ * height_ * Utils::BytesPerPixel(format_);
+        VkDeviceSize image_size = width_ * height_ * Utils::BytesPerPixel(vk_format_);
 
         // Create a buffer in host visible memory 
         // so that we can use vkMapMemory and copy the pixels to it
@@ -147,58 +184,21 @@ namespace rhi {
 
         Release();
 
-        VkImageUsageFlags usage;
-        if (file_path_.empty())
-            usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-        else
-            usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-        AllocateMemory(width_ * height_ * Utils::BytesPerPixel(format_), usage);
+        AllocateMemory(vk_usage_);
 
-        // Create the Descriptor Set:
+        // Create the Descriptor Set for IMGUI:
         descriptor_set_ = (VkDescriptorSet)ImGui_ImplVulkan_AddTexture(sampler_, image_view_, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 
-    VulkanBufferBase::~VulkanBufferBase()
-    {
-        if (buffer_ != VK_NULL_HANDLE)
-            vmaDestroyBuffer(rhi_.allocator_, buffer_, buffer_allocation_);
-    }
+    // ---------------------------------------------------------------------------------
 
-    VulkanStagingBuffer::VulkanStagingBuffer(VulkanRHI& in_rhi, uint64_t size)
-        :VulkanBufferBase(in_rhi)
+    void VulkanBuffer::SetData(const void* data, uint64_t size)
     {
-        VulkanUtils::CreateBuffer(rhi_.GetDevice(), size,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            buffer_,
-            staging_buffer_memory_);
-        MLE_CORE_INFO("[vulkan] Staging Buffer created");
-    }
-
-    VulkanStagingBuffer::~VulkanStagingBuffer()
-    {
-        vkDestroyBuffer(rhi_.GetDevice()->GetDeviceHandle(), buffer_, nullptr);
-        vkFreeMemory(rhi_.GetDevice()->GetDeviceHandle(), staging_buffer_memory_, nullptr);
-        buffer_ = VK_NULL_HANDLE;
-        MLE_CORE_INFO("[vulkan] Staging Buffer created");
-    }
-
-    void VulkanStagingBuffer::SetData(const void* data, uint64_t size)
-    {
-        void* map;
-        vkMapMemory(rhi_.GetDevice()->GetDeviceHandle(), staging_buffer_memory_, 0, size, 0, &map);
-        memcpy(map, data, static_cast<size_t>(size));
-        vkUnmapMemory(rhi_.GetDevice()->GetDeviceHandle(), staging_buffer_memory_);
-    }
-
-    VulkanVertexBuffer::VulkanVertexBuffer(VulkanRHI& in_rhi, uint64_t size)
-        :VulkanBufferBase(in_rhi)
-    {
-        VulkanUtils::VMACreateBuffer(rhi_.allocator_,
-                                     size,
-                                     VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                     buffer_,
-                                     buffer_allocation_);
-        MLE_CORE_INFO("[vulkan] Vertex Buffer created");
+        if (alloc_info.pMappedData == nullptr)
+        {
+            MLE_CORE_ERROR("Buffer isn't mapped, can't set data directly. Please use a staging buffer to upload data");
+            return;
+        }
+        memcpy(alloc_info.pMappedData, data, size);
     }
 }

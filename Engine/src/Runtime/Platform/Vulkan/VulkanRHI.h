@@ -15,8 +15,10 @@ namespace rhi {
     struct VulkanFence :public Fence {
         VkFence fence = VK_NULL_HANDLE;
     };
+
     class VulkanRHI : public RHI
     {
+        friend class VulkanRenderer;
     public:
         virtual void Init() override;
         virtual void Shutdown() override;
@@ -32,6 +34,8 @@ namespace rhi {
         virtual uint32_t GetViewportWidth() override;
         virtual uint32_t GetViewportHeight() override;
 
+        VkFormat GetSwapchainImageFormat() { return viewport_->GetSwapChain()->GetImageFormat(); };
+
         virtual uint32_t GetGfxQueueFamily() override;
 
         virtual void GfxQueueSubmit(const QueueSubmitDesc& desc) override;
@@ -40,23 +44,31 @@ namespace rhi {
         
         virtual void Present(Semaphore** semaphores, uint32_t semaphore_count) override;
 
+        virtual DescriptorSet* CreateDescriptorSet() override;
+        virtual DescriptorSetLayout* CreateDescriptorSetLayout() override;
+        virtual DescriptorSetLayoutCache* CreateDescriptorSetLayoutCache() override;
+        virtual DescriptorAllocator* CreateDescriptorAllocator() override;
         virtual CommandBuffer* RHICreateCommandBuffer() override;
-        virtual std::shared_ptr<RHITexture2D> RHICreateTexture2D(uint32_t width, uint32_t height, PixelFormat in_format, uint32_t miplevels = 1) override;
+        virtual std::shared_ptr<RHITexture2D> RHICreateTexture2D(const RHITexture2D::Descriptor& desc) override;
         virtual std::shared_ptr<RHITexture2D> RHICreateTexture2D(std::string_view path, uint32_t miplevels = 1) override;
-        virtual renderer::RenderPass*         RHICreateRenderPass(const char* render_pass_name, const renderer::RenderPassDesc& desc,
-                                                                  renderer::RenderPass::EXEC_FUNC exec) override;
-        virtual renderer::RenderTarget* RHICreateRenderTarget(renderer::RenderPass& pass) override;
-        virtual renderer::Pipeline*     RHICreatePipeline(const char* vert_path,
-                                                          const char* frag_path,
-                                                          const renderer::PipelineDesc& desc) override;
-        virtual std::shared_ptr<RHIVertexBuffer> RHICreateVertexBuffer(uint64_t size) override;
-        virtual std::shared_ptr<RHIStagingBuffer> RHICreateStagingBuffer(uint64_t size) override;
+        virtual RenderPass*   RHICreateRenderPass(const RenderPass::Descriptor& desc) override;
+        virtual std::unique_ptr<RenderTarget> RHICreateRenderTarget(const RenderTarget::Descriptor& desc) override;
+        
+        virtual ShaderModule* RHICreateShaderModule(const char* path) override;
+        virtual void RHIFreeShaderModule(ShaderModule* shader) override;
+        virtual PipelineLayout* RHICreatePipelineLayout(const PipelineLayout::Descriptor& desc) override;
+        virtual void RHIFreePipelineLaoyout(PipelineLayout* layout) override;
+        virtual PipelineRef RHICreatePipeline(const RHIPipeline::Descriptor& desc) override;
+        virtual void RHIFreePipeline(RHIPipeline* pipeline) override;
+        virtual BufferRef RHICreateBuffer(const RHIBuffer::Descriptor& desc) override;
+        virtual void RHIFreeBuffer(BufferRef buffer) override;
 
         virtual Semaphore* RHICreateSemaphore() override;
         virtual Fence* RHICreateFence() override;
         virtual void RHIDestroySemaphore(Semaphore* semaphore) override;
         virtual void RHIDestroyFence(Fence* fence) override;
         virtual void RHIWaitForFences(Fence** fence, uint32_t fence_count) override;
+        virtual bool RHIIsFenceReady(Fence* fence) override;
 
         void RHITick(float delta_time) override;
         void RHIBlockUntilGPUIdle() override;
@@ -66,6 +78,8 @@ namespace rhi {
         inline VkInstance GetVkInstance() const { return instance_; };
         inline VulkanDevice* GetDevice() { return device_; };
         inline VulkanViewport* GetViewport() { return viewport_; };
+
+        inline VkFormat GetDepthFormat() { return depth_format_; };
 
         VmaAllocator allocator_;
     private:
@@ -83,5 +97,7 @@ namespace rhi {
         VulkanDevice* device_ = nullptr;
 
         VulkanViewport* viewport_ = nullptr;
+
+        VkFormat depth_format_;
     };
 }

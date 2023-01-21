@@ -25,14 +25,17 @@ namespace rhi {
 		virtual ~VulkanGraphicsEncoder() = default;
 
 		virtual void Begin() override { InternalBegin(); }
-		virtual void BeginRenderPass(renderer::RenderPass& pass,
-									 renderer::RenderTarget& render_target) override;
-		virtual void BindGfxPipeline(renderer::Pipeline* pipeline) override;
-		virtual void BindVertexBuffers(uint32_t first_binding, uint32_t binding_count, rhi::RHIVertexBuffer** buffer, uint64_t* offsets) override;
+		virtual void BeginRenderPass(RenderPass& pass, RenderTarget& render_target) override;
+		virtual void BindGfxPipeline(RHIPipeline* pipeline) override;
+		virtual void BindVertexBuffers(uint32_t first_binding, uint32_t binding_count, RHIBuffer** buffer, uint64_t* offsets) override;
+		virtual void BindIndexBuffer(RHIBuffer* index_buffer, uint64_t offset) override;
+		virtual void BindDescriptorSets(PipelineLayout* layout, uint32_t first_set, uint32_t sets_count, DescriptorSet** sets, uint32_t dynameic_offset_count, const uint32_t* dynamic_offsets) override;
+		
 		virtual void SetViewport(float x, float y, float width, float height, float min_depth, float max_depth) override;
 		virtual void SetScissor(int32_t offset_x, int32_t offset_y, uint32_t width, uint32_t height) override;
 
 		virtual void Draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) override;
+		virtual void DrawIndexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t offset, uint32_t first_instance) override;
 
 		virtual void NextSubpass() override;
 

@@ -1,16 +1,16 @@
 #pragma once
 #include "RHIResource.h"
 #include "CommandBuffer.h"
-#include "Runtime/Function/Renderer/RenderPass.h"
-#include "Runtime/Function/Renderer/Pipeline.h"
+#include "RenderPass.h"
+#include "Descriptor.h"
 
 // Forward declaration
 struct ImDrawData;
 
 namespace rhi{
-    struct Semaphore {};;
+    struct Semaphore {};
 
-    struct Fence {};;
+    struct Fence {};
 
     struct QueueSubmitDesc
     {
@@ -59,17 +59,24 @@ namespace rhi{
 
         virtual void Present(Semaphore** semaphores, uint32_t semaphore_count) = 0;
 
+        virtual DescriptorSet* CreateDescriptorSet() = 0;
+        virtual DescriptorSetLayout* CreateDescriptorSetLayout() = 0;
+        virtual DescriptorSetLayoutCache* CreateDescriptorSetLayoutCache() = 0;
+        virtual DescriptorAllocator* CreateDescriptorAllocator() = 0;
         virtual CommandBuffer* RHICreateCommandBuffer() = 0;
-        virtual std::shared_ptr<RHITexture2D> RHICreateTexture2D(uint32_t width, uint32_t height, PixelFormat in_format, uint32_t miplevels = 1) = 0;
+        virtual std::shared_ptr<RHITexture2D> RHICreateTexture2D(const RHITexture2D::Descriptor& desc) = 0;
         virtual std::shared_ptr<RHITexture2D> RHICreateTexture2D(std::string_view path, uint32_t miplevels = 1) = 0;
-        virtual renderer::RenderPass* RHICreateRenderPass(const char* render_pass_name, const renderer::RenderPassDesc& desc,
-                                                          renderer::RenderPass::EXEC_FUNC exec) = 0;
-        virtual renderer::RenderTarget* RHICreateRenderTarget(renderer::RenderPass& pass) = 0;
-        virtual renderer::Pipeline* RHICreatePipeline(const char* vert_path,
-                                                      const char* frag_path,
-                                                      const renderer::PipelineDesc& desc) = 0;
-        virtual std::shared_ptr<RHIVertexBuffer> RHICreateVertexBuffer(uint64_t size) = 0;
-        virtual std::shared_ptr<RHIStagingBuffer> RHICreateStagingBuffer(uint64_t size) = 0;
+        virtual RenderPass* RHICreateRenderPass(const RenderPass::Descriptor& desc) = 0;
+        virtual std::unique_ptr<RenderTarget> RHICreateRenderTarget(const RenderTarget::Descriptor& desc) = 0;
+        
+        virtual ShaderModule* RHICreateShaderModule(const char* path) = 0;
+        virtual void RHIFreeShaderModule(ShaderModule* shader) = 0;
+        virtual PipelineLayout* RHICreatePipelineLayout(const PipelineLayout::Descriptor& desc) = 0;
+        virtual void RHIFreePipelineLaoyout(PipelineLayout* layout) = 0;
+        virtual PipelineRef RHICreatePipeline(const RHIPipeline::Descriptor& desc) = 0;
+        virtual void RHIFreePipeline(RHIPipeline* pipeline) = 0;
+        virtual BufferRef RHICreateBuffer(const RHIBuffer::Descriptor& desc) = 0;
+        virtual void RHIFreeBuffer(BufferRef buffer) = 0;
 
         virtual Semaphore* RHICreateSemaphore() = 0;
         virtual Fence* RHICreateFence() = 0;
@@ -77,6 +84,7 @@ namespace rhi{
         virtual void RHIDestroyFence(Fence* fence) = 0;
         // Block until the condition is satisfied, then reset the fence
         virtual void RHIWaitForFences(Fence** fence, uint32_t fence_count) = 0;
+        virtual bool RHIIsFenceReady(Fence* fence) = 0;
 
         static GfxAPI GetAPI() { return api_; }
         static RHI& GetRHIInstance();

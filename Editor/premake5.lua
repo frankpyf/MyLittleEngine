@@ -11,12 +11,14 @@ project "Editor"
    {
       "../vendor/imgui",
       "../vendor/GLFW/include",
+      "../vendor/ImGuizmo",
 
       "../Engine/src",
 
       "%{IncludeDir.VulkanSDK}",
       "%{IncludeDir.glm}",
-      "%{IncludeDir.spdlog}"
+      "%{IncludeDir.spdlog}",
+      "%{IncludeDir.entt}"
    }
 
     links

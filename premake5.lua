@@ -6,5 +6,5 @@ workspace "MyLittleEngine"
 
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
-include "WalnutExternal.lua"
+include "Dependencies.lua"
 include "Editor"

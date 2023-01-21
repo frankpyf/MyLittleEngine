@@ -1,15 +1,16 @@
 #pragma once
 #include "Runtime/Function/RHI/CommandBuffer.h"
-#include "RenderPass.h"
+#include "Runtime/Function/RHI/RenderPass.h"
+#include "Runtime/Function/RHI/Descriptor.h"
 
 namespace renderer {
     // Render Commands
 
-    static void BeginRenderPass(rhi::CommandBuffer& cmd_buffer, RenderPass& pass, RenderTarget& render_target)
+    static void BeginRenderPass(rhi::CommandBuffer& cmd_buffer, rhi::RenderPass& pass, rhi::RenderTarget& render_target)
     {
         cmd_buffer.GetGfxEncoder().BeginRenderPass(pass, render_target);
     };
-    static void BindGfxPipeline(rhi::CommandBuffer& cmd_buffer, renderer::Pipeline* pipeline)
+    static void BindGfxPipeline(rhi::CommandBuffer& cmd_buffer, rhi::RHIPipeline* pipeline)
     {
         cmd_buffer.GetGfxEncoder().BindGfxPipeline(pipeline);
     };
@@ -25,6 +26,10 @@ namespace renderer {
     {
         cmd_buffer.GetGfxEncoder().Draw(vertex_count, instance_count, first_vertex, first_instance);
     }
+    static void DrawIndexed(rhi::CommandBuffer& cmd_buffer, uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t offset, uint32_t first_instance)
+    {
+        cmd_buffer.GetGfxEncoder().DrawIndexed(index_count, instance_count, first_index, offset, first_instance);
+    }
     static void NextSubpass(rhi::CommandBuffer& cmd_buffer)
     {
         cmd_buffer.GetGfxEncoder().NextSubpass();
@@ -38,9 +43,17 @@ namespace renderer {
         cmd_buffer.GetGfxEncoder().ImGui_RenderDrawData(draw_data);
     }
 
-    static void BindVertexBuffers(rhi::CommandBuffer& cmd_buffer, uint32_t first_binding, uint32_t binding_count, rhi::RHIVertexBuffer** buffer, uint64_t* offsets)
+    static void BindVertexBuffers(rhi::CommandBuffer& cmd_buffer, uint32_t first_binding, uint32_t binding_count, rhi::RHIBuffer** buffer, uint64_t* offsets)
     {
         cmd_buffer.GetGfxEncoder().BindVertexBuffers(first_binding, binding_count, buffer, offsets);
+    }
+    static void BindIndexBuffer(rhi::CommandBuffer& cmd_buffer, rhi::RHIBuffer* index_buffer, uint64_t offset)
+    {
+        cmd_buffer.GetGfxEncoder().BindIndexBuffer(index_buffer, offset);
+    }
+    static void BindDescriptorSets(rhi::CommandBuffer& cmd_buffer, rhi::PipelineLayout* layout, uint32_t first_set, uint32_t sets_count, rhi::DescriptorSet** sets, uint32_t dynameic_offset_count, const uint32_t* dynamic_offsets)
+    {
+        cmd_buffer.GetGfxEncoder().BindDescriptorSets(layout, first_set, sets_count, sets, dynameic_offset_count, dynamic_offsets);
     }
     // Transfer Commands
     static void CopyBufferToBuffer(rhi::CommandBuffer& cmd_buffer, const rhi::CopyBufferToBufferDesc& desc)
