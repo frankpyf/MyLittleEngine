@@ -67,7 +67,6 @@ namespace renderer {
 		uint32_t	subpass_index_;
 	private:
 		rhi::RenderPass::Subpass subpass_desc_;
-		rhi::RHIPipeline::Descriptor pipeline_desc_;
 	};
 
 	class RenderPassNode : public PassNode

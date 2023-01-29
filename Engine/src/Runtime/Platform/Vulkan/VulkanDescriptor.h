@@ -75,7 +75,7 @@ namespace rhi {
 
 
 		virtual DescriptorWriter& WriteBuffer(uint32_t binding, rhi::RHIBuffer* buffer, DescriptorType type) override;
-		virtual DescriptorWriter& WriteImage(uint32_t binding, rhi::RHITexture2D* image, DescriptorType type) override { return *this; };
+		virtual DescriptorWriter& WriteImage(uint32_t binding, rhi::RHITexture2D* image, DescriptorType type) override;
 
 		virtual bool Build(DescriptorSet* set, DescriptorSetLayout* layout) override;
 		virtual void OverWrite(DescriptorSet* set) override;

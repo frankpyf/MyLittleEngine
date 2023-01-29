@@ -45,6 +45,11 @@ namespace renderer {
 		{
 			return frames_manager_.GetCurrentFrame();
 		};
+
+		inline uint8_t GetFrameIndex()
+		{
+			return frames_manager_.GetFrameIndex();
+		}
 	private:
 		RenderGraph render_graph_;
 		FrameResourceMngr frames_manager_;

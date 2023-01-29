@@ -18,6 +18,7 @@ namespace renderer {
 	}
 	RenderGraph::SubpassBuilder& RenderGraph::SubpassBuilder::SetPipeline(const rhi::RHIPipeline::Descriptor& desc)
 	{
+		subpass_node_->parent_->rg_.SetPipelineInternal(subpass_node_, desc);
 		return *this;
 	}
 	// --------------------------------------------------------------
@@ -54,9 +55,9 @@ namespace renderer {
 		return *this;
 	}
 
-	RenderGraph::Builder& RenderGraph::Builder::SetPipeline(rhi::RHIPipeline::Descriptor desc)
+	RenderGraph::Builder& RenderGraph::Builder::SetPipeline(const rhi::RHIPipeline::Descriptor& desc)
 	{
-		rg_.SetPipeline(node_, desc);
+		rg_.SetPipelineInternal(node_, desc);
 		return *this;
 	}
 
@@ -72,7 +73,7 @@ namespace renderer {
 
 	RenderGraph::SubpassBuilder RenderGraph::AddSubPassInternal(const char* name, RenderPassNode* parent)
 	{
-		PassNode* node = new SubpassNode(name, *this, parent, pass_nodes_.size());
+		SubpassNode* node = new SubpassNode(name, *this, parent, pass_nodes_.size());
 		pass_nodes_.push_back(node);
 		node->DontCull();
 
@@ -250,10 +251,17 @@ namespace renderer {
 		resource->Connect(graph_, node, resource_node);*/
 	}
 
-	void RenderGraph::SetPipeline(PassNode* node, rhi::RHIPipeline::Descriptor desc)
+	void RenderGraph::SetPipelineInternal(PassNode* node, rhi::RHIPipeline::Descriptor desc)
 	{
 		RenderPassNode* pass_node = static_cast<RenderPassNode*>(node);
 		desc.render_pass = pass_node->pass_base_->actual_rp_;
 		pass_node->pipelines_.push_back(desc);
+	}
+
+	void RenderGraph::SetPipelineInternal(SubpassNode* pass_node, const rhi::RHIPipeline::Descriptor& desc)
+	{
+		auto pipeline_desc = pass_node->parent_->pipelines_.emplace_back(desc);
+		pipeline_desc.render_pass = pass_node->parent_->pass_base_->actual_rp_;
+		pipeline_desc.subpass = pass_node->subpass_index_;
 	}
 }

@@ -20,26 +20,21 @@ namespace editor
 		const glm::vec3& GetPosition() const { return position_; }
 		const glm::vec3& GetDirection() const { return forward_direction_; }
 
-		const std::vector<glm::vec3>& GetRayDirections() const { return ray_directions_; }
-
 		float GetRotationSpeed();
 	private:
 		void RecalculateProjection();
 		void RecalculateView();
-		void RecalculateRayDirections();
 	private:
 		glm::mat4 view_{ 1.0f };
-		glm::mat4 inverse_projection_{ 1.0f };
-		glm::mat4 inverse_view_{ 1.0f };
+		glm::mat4 inverse_projection_ = glm::inverse(projection_);
+		glm::mat4 inverse_view_ = glm::inverse(view_);
 
 		float vertical_fov = 45.0f;
 		float near_clip_ = 0.1f;
 		float far_clip_ = 100.0f;
 
 		glm::vec3 position_{ 0.0f, 0.0f, 0.0f };
-		glm::vec3 forward_direction_{ 0.0f, 0.0f, -1.0f };
-
-		std::vector<glm::vec3> ray_directions_;
+		glm::vec3 forward_direction_ {0.0f, 0.0f, -1.0f};
 
 		glm::vec2 last_mouse_position_{ 0.0f, 0.0f };
 

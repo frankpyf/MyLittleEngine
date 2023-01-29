@@ -17,7 +17,7 @@ namespace renderer{
 		{
 			friend class Builder;
 		public:
-			SubpassBuilder(RenderGraph& rg, PassNode* node)
+			SubpassBuilder(RenderGraph& rg, SubpassNode* node)
 				:rg_(rg), subpass_node_(node) {};
 			SubpassBuilder(SubpassBuilder const&) = delete;
 			SubpassBuilder& operator=(SubpassBuilder const&) = delete;
@@ -27,7 +27,7 @@ namespace renderer{
 			SubpassBuilder& SetPipeline(const rhi::RHIPipeline::Descriptor& desc);
 		private:
 			RenderGraph& rg_;
-			PassNode* const subpass_node_;
+			SubpassNode* const subpass_node_;
 		};
 		class Builder
 		{
@@ -46,7 +46,7 @@ namespace renderer{
 			Builder& ReadWrite(uint32_t set, uint32_t binding, ResourceHandle resource, LoadOp load_operation, StoreOp store_operation);
 			Builder& Write(ResourceHandle resource, LoadOp load_operation, StoreOp store_operation);
 
-			Builder& SetPipeline(rhi::RHIPipeline::Descriptor desc);
+			Builder& SetPipeline(const rhi::RHIPipeline::Descriptor& desc);
 
 			template<typename Setup>
 			Builder& AddSubpass(const char* pass_name, Setup setup)
@@ -135,7 +135,8 @@ namespace renderer{
 
 		void Read(PassNode* pass_node, ResourceHandle handle);
 		void Write(PassNode* pass_node, ResourceHandle handle);
-		void SetPipeline(PassNode* pass_node, rhi::RHIPipeline::Descriptor desc);
+		void SetPipelineInternal(PassNode* node, rhi::RHIPipeline::Descriptor desc);
+		void SetPipelineInternal(SubpassNode* pass_node, const rhi::RHIPipeline::Descriptor& desc);
 
 		VirtualResource* GetResource(ResourceHandle handle)
 		{

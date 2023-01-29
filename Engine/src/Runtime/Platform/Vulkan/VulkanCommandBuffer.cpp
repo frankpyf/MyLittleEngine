@@ -112,9 +112,9 @@ namespace rhi {
 	{
 		VkViewport viewport{};
 		viewport.x = x;
-		viewport.y = y + height;
+		viewport.y = y;
 		viewport.width = width;
-		viewport.height = -height;
+		viewport.height = height;
 		viewport.minDepth = min_depth;
 		viewport.maxDepth = max_depth;
 		vkCmdSetViewport(command_buffer_, 0, 1, &viewport);

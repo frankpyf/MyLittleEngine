@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Runtime/Function/RHI/RHIResource.h"
+#include "Runtime/Function/Renderer/Camera.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -49,6 +50,11 @@ namespace engine {
 		SpriteRendererComponent(const SpriteRendererComponent&) = default;
 		SpriteRendererComponent(const glm::vec4& in_color)
 			: color(in_color) {}
+	};
+
+	struct CameraComponent
+	{
+
 	};
 
 	struct InputComponent

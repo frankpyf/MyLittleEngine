@@ -667,13 +667,14 @@ namespace rhi {
 		color.offset = offsetof(resource::Vertex, color);
 
 		VkVertexInputAttributeDescription vertex_attribute_desc[] = { position, color };
+		
 
 		VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-		vertexInputInfo.vertexAttributeDescriptionCount = 2;
-		vertexInputInfo.vertexBindingDescriptionCount = 1;
-		vertexInputInfo.pVertexAttributeDescriptions = vertex_attribute_desc;
-		vertexInputInfo.pVertexBindingDescriptions = &binding_description;
+		vertexInputInfo.vertexAttributeDescriptionCount = desc.use_vertex_attribute ? 2 : 0;
+		vertexInputInfo.vertexBindingDescriptionCount = desc.use_vertex_attribute ? 1 : 0;
+		vertexInputInfo.pVertexAttributeDescriptions = desc.use_vertex_attribute ? vertex_attribute_desc : nullptr;
+		vertexInputInfo.pVertexBindingDescriptions = desc.use_vertex_attribute ? &binding_description : nullptr;
 
 		VkPipelineInputAssemblyStateCreateInfo input_assembly_state{};
 		input_assembly_state.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -694,7 +695,7 @@ namespace rhi {
 		rasterization_state.polygonMode = VK_POLYGON_MODE_FILL;
 		rasterization_state.lineWidth = 1.0f;
 		rasterization_state.cullMode = VK_CULL_MODE_BACK_BIT;
-		rasterization_state.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		rasterization_state.frontFace = VK_FRONT_FACE_CLOCKWISE;
 		rasterization_state.depthBiasEnable = VK_FALSE;
 		rasterization_state.depthBiasConstantFactor = 0.0f;  // Optional
 		rasterization_state.depthBiasClamp = 0.0f;           // Optional

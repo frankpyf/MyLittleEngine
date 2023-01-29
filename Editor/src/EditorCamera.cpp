@@ -13,6 +13,8 @@ EditorCamera::EditorCamera(float verticalFOV, float nearClip, float farClip)
 	: vertical_fov(verticalFOV), near_clip_(nearClip), far_clip_(farClip)
 {
 	position_ = glm::vec3(0, 0, 6);
+
+	RecalculateView();
 }
 
 bool EditorCamera::OnUpdate(float ts)
@@ -115,22 +117,4 @@ void EditorCamera::RecalculateView()
 {
 	view_ = glm::lookAt(position_, position_ + forward_direction_, glm::vec3(0, 1, 0));
 	inverse_view_ = glm::inverse(view_);
-}
-
-void EditorCamera::RecalculateRayDirections()
-{
-	ray_directions_.resize(viewport_width_ * viewport_height_);
-
-	for (uint32_t y = 0; y < viewport_height_; y++)
-	{
-		for (uint32_t x = 0; x < viewport_width_; x++)
-		{
-			glm::vec2 coord = { (float)x / (float)viewport_width_, (float)y / (float)viewport_height_ };
-			coord = coord * 2.0f - 1.0f; // -1 -> 1
-
-			glm::vec4 target = inverse_projection_ * glm::vec4(coord.x, coord.y, 1, 1);
-			glm::vec3 rayDirection = glm::vec3(inverse_view_ * glm::vec4(glm::normalize(glm::vec3(target) / target.w), 0)); // World space
-			ray_directions_[x + y * viewport_width_] = rayDirection;
-		}
-	}
 }

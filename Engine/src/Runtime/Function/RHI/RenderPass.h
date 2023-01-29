@@ -37,7 +37,7 @@ namespace rhi {
 
 			uint32_t width;
 			uint32_t height;
-			glm::fvec4 clear_value = { 0.0f,0.0f,0.0f,1.0f };
+			glm::fvec4 clear_value = { 0.45f, 0.55f, 0.60f, 1.00f };
 
 			RenderPass* pass;
 		};
@@ -53,7 +53,7 @@ namespace rhi {
 
 		static std::unique_ptr<RenderTarget> Create(const RenderTarget::Descriptor& desc);
 	protected:
-		glm::fvec4 clear_value_ = { 0.0f,0.0f,0.0f,1.0f };
+		glm::fvec4 clear_value_;
 		uint32_t width_;
 		uint32_t height_;
 	};

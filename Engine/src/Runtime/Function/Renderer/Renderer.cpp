@@ -51,11 +51,6 @@ namespace renderer
     {
         auto& current_frame = frames_manager_.GetCurrentFrame();
 
-        // Update Descriptors
-        rhi::DescriptorWriter::Begin(desc_allocator_)
-            .WriteBuffer(0, current_frame.global_ubo.get(), DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-            .Build(current_frame.global_set, global_layout_);
-
         render_graph_.Run(current_frame);
     }
 

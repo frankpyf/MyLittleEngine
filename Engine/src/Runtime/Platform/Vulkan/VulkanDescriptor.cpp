@@ -251,6 +251,23 @@ namespace rhi {
 		return *this;
 	}
 
+	DescriptorWriter& VulkanDescriptorWriter::WriteImage(uint32_t binding, rhi::RHITexture2D* image, DescriptorType type)
+	{
+		VulkanTexture2D* vk_image = static_cast<VulkanTexture2D*>(image);
+		//create the descriptor write
+		VkWriteDescriptorSet& newWrite = writes_.emplace_back();
+
+		newWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		newWrite.pNext = nullptr;
+		newWrite.descriptorCount = 1;
+		newWrite.descriptorType = VulkanUtils::MLEFormatToVkFormat(type);
+		//newWrite.pBufferInfo = &vk_image->buffer_info;
+		newWrite.dstBinding = binding;
+
+		return *this;
+
+	}
+
 	bool VulkanDescriptorWriter::Build(DescriptorSet* set, DescriptorSetLayout* layout)
 	{
 		if (!alloc_->Allocate(set, layout))

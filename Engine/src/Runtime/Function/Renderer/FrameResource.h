@@ -23,9 +23,6 @@ namespace renderer {
 		rhi::Semaphore* render_finished_semaphore = nullptr;
 		rhi::Semaphore* image_acquired_semaphore = nullptr;
 
-		rhi::BufferRef		global_ubo;
-		rhi::DescriptorSet* global_set = nullptr;
-
 		std::vector<std::shared_ptr<rhi::RHITexture2D>> texture_dump;
 		std::vector<std::shared_ptr<rhi::RenderTarget>> render_target_dump;
 	};
@@ -40,6 +37,7 @@ namespace renderer {
 		void DestroyFrames();
 		FrameResource& BeginFrame();
 		inline FrameResource& GetCurrentFrame() { return frame_[current_frame]; };
+		inline uint8_t GetFrameIndex() { return current_frame; };
 
 		FrameResource& EndFrame();
 

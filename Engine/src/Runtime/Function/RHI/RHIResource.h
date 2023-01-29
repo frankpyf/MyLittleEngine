@@ -138,6 +138,9 @@ namespace rhi {
 			ShaderModule* vert_shader;
 			ShaderModule* frag_shader;
 
+			// TEMP
+			bool use_vertex_attribute = true;
+
 			// index of the subpass(vulkan only?)
 			uint32_t subpass;
 		};

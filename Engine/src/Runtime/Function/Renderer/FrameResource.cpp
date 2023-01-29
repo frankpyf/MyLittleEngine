@@ -13,15 +13,6 @@ namespace renderer {
 			frame_[index].in_flight_fence = rhi.RHICreateFence();
 			frame_[index].image_acquired_semaphore = rhi.RHICreateSemaphore();
 			frame_[index].render_finished_semaphore = rhi.RHICreateSemaphore();
-
-			rhi::RHIBuffer::Descriptor buffer_desc{};
-			buffer_desc.size = sizeof(resource::UniformBufferObject);
-			buffer_desc.mapped_at_creation = true;
-			buffer_desc.memory_usage = MemoryUsage::MEMORY_USAGE_CPU_TO_GPU;
-			buffer_desc.usage = ResourceTypes::RESOURCE_TYPE_UNIFORM_BUFFER;
-			frame_[index].global_ubo = rhi.RHICreateBuffer(buffer_desc);
-
-			frame_[index].global_set = rhi.CreateDescriptorSet();
 		}
 	}
 
