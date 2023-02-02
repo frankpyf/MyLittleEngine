@@ -167,7 +167,7 @@ namespace editor {
 					{
 						// Update Buffer
 						CameraUbo camera_data{};
-						;		camera_data.position = editor_camera_.GetPosition();
+						camera_data.position = editor_camera_.GetPosition();
 						camera_data.inverse_view = editor_camera_.GetInverseView();
 						camera_data.inverse_proj = editor_camera_.GetInverseProjection();
 						camera_ubo_[frame_index_]->SetData(&camera_data, sizeof(camera_data));
