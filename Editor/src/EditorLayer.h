@@ -31,14 +31,14 @@ namespace editor{
 	class EditorLayer: public engine::Layer
 	{
 	public:
-		EditorLayer();
+		EditorLayer() = default;
 		virtual ~EditorLayer() = default;
 		virtual void OnAttach() override;
 		virtual void OnDetach() override;
 		virtual void OnUIRender() override;
 		virtual void OnUpdate(float delta_time) override;
  	private:
-		std::shared_ptr<rhi::RHITexture2D> back_buffer_;
+		rhi::TextureRef back_buffer_;
 
 		EditorCamera editor_camera_;
 		rhi::BufferRef camera_ubo_[renderer::FrameResourceMngr::MAX_FRAMES_IN_FLIGHT];
@@ -53,19 +53,15 @@ namespace editor{
 		std::unique_ptr<rhi::DescriptorAllocator> desc_allocator_;
 		std::unique_ptr<rhi::DescriptorSetLayoutCache> layout_cache_;
 
-		rhi::DescriptorSet*			global_set_[renderer::FrameResourceMngr::MAX_FRAMES_IN_FLIGHT];
-		rhi::DescriptorSetLayout*	global_set_layout_;
-		// used by sky pass
-		/*rhi::DescriptorSetLayout* texture_set_layout_;
+		rhi::DescriptorSetPtr			global_set_[renderer::FrameResourceMngr::MAX_FRAMES_IN_FLIGHT];
+		rhi::DescriptorSetLayoutRef		global_set_layout_;
 
-		rhi::DescriptorSetLayout* buffer_set_layout_;*/
-
-		// rhi::DescriptorSet* texture_set_[renderer::FrameResourceMngr::MAX_FRAMES_IN_FLIGHT];
-		// rhi::DescriptorSet* buffer_set_[renderer::FrameResourceMngr::MAX_FRAMES_IN_FLIGHT];
+		rhi::DescriptorSetPtr			texture_set_[renderer::FrameResourceMngr::MAX_FRAMES_IN_FLIGHT];
+		rhi::DescriptorSetLayoutRef		texture_set_layout_;
 
 		// rhi::PipelineLayout* pipeline_layout_;
 		rhi::PipelineLayout* atmosphere_pipeline_layout_;
-		// rhi::PipelineLayout* combine_pipeline_layout_;
+		rhi::PipelineLayout* combine_pipeline_layout_;
 
 		rhi::BufferRef vb_;
 		rhi::BufferRef indicies_;

@@ -1,8 +1,10 @@
 #pragma once
 #include "entt/entt.hpp"
+#include "Runtime/Resource/Vertex.h"
 
 namespace engine {
 	class Entity;
+
 
 	class Scene
 	{
@@ -28,9 +30,7 @@ namespace engine {
 		{
 			registry_.each(std::forward<Func>(func));
 		}
-
 	private:
 		entt::registry registry_;
-
 	};
 }

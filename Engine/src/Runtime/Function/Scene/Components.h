@@ -61,4 +61,15 @@ namespace engine {
 	{
 
 	};
+
+	struct LightComponent
+	{
+		float light_intensity = 10.0;
+		glm::vec3 light_color{ 1.0, 1.0, 1.0 };
+
+		LightComponent() = default;
+		LightComponent(const LightComponent&) = default;
+		LightComponent(float intensity, glm::vec3 color)
+			:light_intensity(intensity), light_color(color) {}
+	};
 }

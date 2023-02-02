@@ -23,7 +23,7 @@ namespace renderer {
 		rhi::Semaphore* render_finished_semaphore = nullptr;
 		rhi::Semaphore* image_acquired_semaphore = nullptr;
 
-		std::vector<std::shared_ptr<rhi::RHITexture2D>> texture_dump;
+		std::vector<rhi::TextureRef> texture_dump;
 		std::vector<std::shared_ptr<rhi::RenderTarget>> render_target_dump;
 	};
 

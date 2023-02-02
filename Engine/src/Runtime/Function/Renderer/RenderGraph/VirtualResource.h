@@ -1,6 +1,7 @@
 #pragma once
 #include "Runtime/Function/RHI/RHIResource.h"
 #include "Runtime/Function/RHI/RenderPass.h"
+#include "Runtime/Function/RHI/RHI.h"
 #include "Runtime/Function/Renderer/FrameResource.h"
 
 namespace renderer {
@@ -31,7 +32,6 @@ namespace renderer {
 		// last pass that needs this resource, so it has the resonsibility to destroy the resource
 		PassNode* last_ = nullptr;
 
-	protected:
 		const bool is_imported_;
 	};
 
@@ -72,20 +72,19 @@ namespace renderer {
 
 	struct RenderGraphTexture
 	{
-		std::shared_ptr<rhi::RHITexture2D> texture;
-		using Descriptor = rhi::RHITexture2D::Descriptor;
+		rhi::TextureRef texture;
+		using Descriptor = rhi::RHITexture::Descriptor;
 		Descriptor desc_{};
 
 		rhi::ImageLayout last_layout = rhi::ImageLayout::IMAGE_LAYOUT_UNDEFINED;
 
 		void Create() 
 		{
-			texture = rhi::RHITexture2D::Create(desc_);
+			texture = rhi::RHI::GetRHIInstance().RHICreateTexture(desc_);
 		};
 		void Destroy(FrameResource& frame) 
 		{
-			auto& dump = frame.texture_dump.emplace_back();
-			dump = std::move(texture);
+			frame.texture_dump.push_back(texture);
 		};
 	};
 

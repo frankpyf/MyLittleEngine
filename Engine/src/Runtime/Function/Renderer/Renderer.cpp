@@ -29,6 +29,7 @@ namespace renderer
     {
         rhi::RHICommands::Init();
         frames_manager_.CreateFrames();
+        render_graph_.SetRenderer(this);
     }
 
     void Renderer::Shutdown()
@@ -83,14 +84,16 @@ namespace renderer
         rhi::RHI& rhi = rhi::RHI::GetRHIInstance();
         auto size = sizeof(in_vertices[0]) * in_vertices.size();
         rhi::RHIBuffer::Descriptor vb_desc{}; 
-        vb_desc.size = size;
+        vb_desc.element_count = 1;
+        vb_desc.element_stride = size;
         vb_desc.usage = ResourceTypes::RESOURCE_TYPE_VERTEX_BUFFER;
         vb_desc.memory_usage = MemoryUsage::MEMORY_USAGE_GPU_ONLY;
         vb_desc.prefer_device = true;
         auto vertex_buffer = rhi.RHICreateBuffer(vb_desc);
 
         rhi::RHIBuffer::Descriptor sb_desc{};
-        sb_desc.size = size;
+        sb_desc.element_count = 1;
+        sb_desc.element_stride = size;
         sb_desc.usage = ResourceTypes::RESOURCE_TYPE_STAGING_BUFFER;
         sb_desc.memory_usage = MemoryUsage::MEMORY_USAGE_CPU_TO_GPU;
         sb_desc.prefer_host = true;
@@ -111,6 +114,7 @@ namespace renderer
 
         rhi::RHICommands::TransferQueueSubmit(submit_info);
         rhi.RHIBlockUntilGPUIdle();
+        rhi.RHIFreeBuffer(*staging_buffer);
         return vertex_buffer;
     }
 
@@ -119,14 +123,16 @@ namespace renderer
         rhi::RHI& rhi = rhi::RHI::GetRHIInstance();
         auto size = sizeof(in_indecies[0]) * in_indecies.size();
         rhi::RHIBuffer::Descriptor ib_desc{};
-        ib_desc.size = size;
+        ib_desc.element_count = 1;
+        ib_desc.element_stride = size;
         ib_desc.usage = ResourceTypes::RESOURCE_TYPE_INDEX_BUFFER;
         ib_desc.memory_usage = MemoryUsage::MEMORY_USAGE_GPU_ONLY;
         ib_desc.prefer_device = true;
         auto index_buffer = rhi.RHICreateBuffer(ib_desc);
 
         rhi::RHIBuffer::Descriptor sb_desc{};
-        sb_desc.size = size;
+        sb_desc.element_count = 1;
+        sb_desc.element_stride = size;
         sb_desc.usage = ResourceTypes::RESOURCE_TYPE_STAGING_BUFFER;
         sb_desc.memory_usage = MemoryUsage::MEMORY_USAGE_CPU_TO_GPU;
         sb_desc.prefer_host = true;
@@ -147,6 +153,7 @@ namespace renderer
 
         rhi::RHICommands::TransferQueueSubmit(submit_info);
         rhi.RHIBlockUntilGPUIdle();
+        rhi.RHIFreeBuffer(*staging_buffer);
         return index_buffer;
     }
 }

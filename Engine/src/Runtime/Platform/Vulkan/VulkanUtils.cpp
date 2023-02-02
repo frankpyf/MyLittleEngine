@@ -45,12 +45,12 @@ namespace rhi {
         bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         VkResult result = vmaCreateBuffer(allocator, &bufferInfo, &vma_info, &buffer, &buffer_allocation, alloc_info);
-
     }
 
     void VulkanUtils::VMACreateImage(VmaAllocator&         allocator,
                                      uint32_t              image_width,
                                      uint32_t              image_height,
+                                     uint32_t			   image_depth,
                                      VkFormat              format,
                                      VkImageTiling         image_tiling,
                                      VkImageUsageFlags     image_usage_flags,
@@ -65,7 +65,7 @@ namespace rhi {
         image_create_info.imageType = VK_IMAGE_TYPE_2D;
         image_create_info.extent.width = image_width;
         image_create_info.extent.height = image_height;
-        image_create_info.extent.depth = 1;
+        image_create_info.extent.depth = image_depth;
         image_create_info.mipLevels = miplevels;
         image_create_info.arrayLayers = array_layers;
         image_create_info.format = format;
@@ -313,7 +313,7 @@ namespace rhi {
         device->EndSingleTimeCommands(command_buffer);
     }
 
-    VkSampler VulkanUtils::CreateLinearSampler(const VkDevice& device, const VkPhysicalDevice& physical_device, VkSampler& sampler)
+    void VulkanUtils::CreateLinearSampler(const VkDevice& device, const VkPhysicalDevice& physical_device, VkSampler& sampler)
     {
         VkPhysicalDeviceProperties physical_device_properties{};
         vkGetPhysicalDeviceProperties(physical_device, &physical_device_properties);
@@ -343,17 +343,17 @@ namespace rhi {
         }
     }
 
-    VkFormat VulkanUtils::MLEFormatToVkFormat(rhi::PixelFormat format)
+    VkFormat VulkanUtils::MLEFormatToVkFormat(PixelFormat format)
     {
         switch (format)
         {
-        case rhi::PixelFormat::RGBA8: return VK_FORMAT_R8G8B8A8_UNORM;
-        case rhi::PixelFormat::RGBA32F:return VK_FORMAT_R32G32B32A32_SFLOAT;
+        case PixelFormat::RGBA8: return VK_FORMAT_R8G8B8A8_UNORM;
+        case PixelFormat::RGBA32F:return VK_FORMAT_R32G32B32A32_SFLOAT;
         default:return (VkFormat)0;
         }
     };
 
-    VkAttachmentLoadOp VulkanUtils::MLEFormatToVkFormat(rhi::RenderPass::AttachmentDesc::LoadOp in_op)
+    VkAttachmentLoadOp VulkanUtils::MLEFormatToVkFormat(RenderPass::AttachmentDesc::LoadOp in_op)
     {
         switch (in_op)
         {
@@ -364,7 +364,7 @@ namespace rhi {
         }
     }
 
-    VkAttachmentStoreOp VulkanUtils::MLEFormatToVkFormat(rhi::RenderPass::AttachmentDesc::StoreOp in_op)
+    VkAttachmentStoreOp VulkanUtils::MLEFormatToVkFormat(RenderPass::AttachmentDesc::StoreOp in_op)
     {
         switch (in_op)
         {
@@ -374,7 +374,7 @@ namespace rhi {
         }
     }
 
-    VkDescriptorType VulkanUtils::MLEFormatToVkFormat(DescriptorType& in_type)
+    VkDescriptorType VulkanUtils::MLEFormatToVkFormat(const DescriptorType& in_type)
     {
 #define MLE_DESC_TYPE_TO_VK_DESC_TYPE(type) case type: return VK_##type;
         switch (in_type)
@@ -394,7 +394,7 @@ namespace rhi {
         return VK_DESCRIPTOR_TYPE_MAX_ENUM;
     }
 
-    VkShaderStageFlags VulkanUtils::MLEFormatToVkFormat(ShaderStage& in_stage)
+    VkShaderStageFlags VulkanUtils::MLEFormatToVkFormat(const ShaderStage& in_stage)
     {
 #define MLE_DESC_STAGE_TO_VK_DESC_STAGE(stage) case stage: return VK_##stage;
         switch (in_stage)

@@ -1,36 +1,45 @@
-[2023-01-29 16:38:48.630] [Core] [info] Engine running
-[2023-01-29 16:38:49.132] [Core] [info] Found 2 device(s)
-[2023-01-29 16:38:49.132] [Core] [info] device is: NVIDIA GeForce RTX 2060
-[2023-01-29 16:38:49.132] [Core] [info] Found 3 Queue Families
-[2023-01-29 16:38:49.133] [Core] [info] Initializing Gfx Queue with Queue family 0 which has 16 queues
-[2023-01-29 16:38:49.133] [Core] [info] Initializing Transfer Queue with Queue family 1 which has 2 queues
-[2023-01-29 16:38:49.133] [Core] [info] Initializing Compute Queue with Queue family 2 which has 8 queues
-[2023-01-29 16:38:49.361] [Core] [info] Logical Device is created from: NVIDIA GeForce RTX 2060
-[2023-01-29 16:38:49.363] [Core] [info] Global descriptor pool has been created!
-[2023-01-29 16:38:49.363] [Core] [info] VMA allocator created
-[2023-01-29 16:38:49.375] [Core] [info] Present mode: Mailbox
-[2023-01-29 16:38:49.375] [Core] [info] This swapchain supports at least 3 image(s)
-[2023-01-29 16:38:49.375] [Core] [info] Queue Family 0: Supports Present
-[2023-01-29 16:38:49.375] [Core] [info] Queue Family 2: Supports Present
-[2023-01-29 16:38:49.376] [Core] [info] Present Queue family index: 2
-[2023-01-29 16:38:49.403] [Core] [info] Swapchain created with 3 image(s)
-[2023-01-29 16:38:49.404] [Core] [info] [vulkan] Vertex Buffer created
-[2023-01-29 16:38:49.404] [Core] [info] [vulkan] Vertex Buffer created
-[2023-01-29 16:38:49.405] [Core] [info] [vulkan] Vertex Buffer created
-[2023-01-29 16:38:49.405] [Core] [info] [vulkan] Vertex Buffer created
-[2023-01-29 16:38:49.405] [Core] [info] [vulkan] Vertex Buffer created
-[2023-01-29 16:38:49.405] [Core] [info] [vulkan] Vertex Buffer created
-[2023-01-29 16:38:49.407] [Core] [info] [vulkan] Vertex Buffer created
-[2023-01-29 16:38:49.407] [Core] [info] [vulkan] Vertex Buffer created
-[2023-01-29 16:38:49.410] [Core] [info] [vulkan] Vertex Buffer created
-[2023-01-29 16:38:49.410] [Core] [info] [vulkan] Vertex Buffer created
-[2023-01-29 16:38:49.418] [Core] [info] [vulkan] Render Pass has been created
-[2023-01-29 16:38:49.419] [Core] [info] [vulkan] Render Pass has been created
-[2023-01-29 16:39:10.338] [APP] [info] mouse pressed: 1
-[2023-01-29 16:39:12.039] [APP] [info] mouse released: 1
-[2023-01-29 16:39:13.927] [APP] [info] mouse pressed: 0
-[2023-01-29 16:39:14.002] [APP] [info] mouse released: 0
-[2023-01-29 16:39:14.468] [APP] [info] mouse pressed: 0
-[2023-01-29 16:39:14.537] [APP] [info] mouse released: 0
-[2023-01-29 16:39:15.673] [APP] [info] mouse pressed: 0
-[2023-01-29 16:39:15.734] [APP] [info] mouse released: 0
+[2023-02-02 20:13:33.245] [Core] [info] Engine running
+[2023-02-02 20:13:33.730] [Core] [info] Found 2 device(s)
+[2023-02-02 20:13:33.731] [Core] [info] device is: NVIDIA GeForce RTX 2060
+[2023-02-02 20:13:33.731] [Core] [info] Found 3 Queue Families
+[2023-02-02 20:13:33.731] [Core] [info] Initializing Gfx Queue with Queue family 0 which has 16 queues
+[2023-02-02 20:13:33.732] [Core] [info] Initializing Transfer Queue with Queue family 1 which has 2 queues
+[2023-02-02 20:13:33.732] [Core] [info] Initializing Compute Queue with Queue family 2 which has 8 queues
+[2023-02-02 20:13:33.986] [Core] [info] Logical Device is created from: NVIDIA GeForce RTX 2060
+[2023-02-02 20:13:33.988] [Core] [info] Global descriptor pool has been created!
+[2023-02-02 20:13:33.988] [Core] [info] VMA allocator created
+[2023-02-02 20:13:34.002] [Core] [info] Present mode: Mailbox
+[2023-02-02 20:13:34.002] [Core] [info] This swapchain supports at least 3 image(s)
+[2023-02-02 20:13:34.002] [Core] [info] Queue Family 0: Supports Present
+[2023-02-02 20:13:34.002] [Core] [info] Queue Family 2: Supports Present
+[2023-02-02 20:13:34.003] [Core] [info] Present Queue family index: 2
+[2023-02-02 20:13:34.036] [Core] [info] Swapchain created with 3 image(s)
+[2023-02-02 20:13:34.038] [Core] [info] [vulkan] Buffer created
+[2023-02-02 20:13:34.038] [Core] [info] [vulkan] Buffer created
+[2023-02-02 20:13:34.041] [Core] [info] [vulkan] Buffer created
+[2023-02-02 20:13:34.041] [Core] [info] [vulkan] Buffer created
+[2023-02-02 20:13:34.041] [Core] [info] [vulkan] Buffer created
+[2023-02-02 20:13:34.042] [Core] [info] [vulkan] Buffer created
+[2023-02-02 20:13:34.044] [Core] [info] [vulkan] Buffer created
+[2023-02-02 20:13:34.047] [Core] [info] [vulkan] Buffer created
+[2023-02-02 20:13:34.059] [Core] [info] [vulkan] Buffer freed
+[2023-02-02 20:13:34.060] [Core] [info] [vulkan] Buffer created
+[2023-02-02 20:13:34.060] [Core] [info] [vulkan] Buffer created
+[2023-02-02 20:13:34.062] [Core] [info] [vulkan] Buffer freed
+[2023-02-02 20:13:34.065] [Core] [info] [vulkan] Render Pass has been created
+[2023-02-02 20:13:34.067] [Core] [info] [vulkan] Render Pass has been created
+[2023-02-02 20:13:34.067] [Core] [info] [vulkan] Render Pass has been created
+[2023-02-02 20:13:37.509] [APP] [info] mouse pressed: 0
+[2023-02-02 20:13:37.575] [APP] [info] mouse released: 0
+[2023-02-02 20:13:38.217] [APP] [info] mouse pressed: 0
+[2023-02-02 20:13:38.291] [APP] [info] mouse released: 0
+[2023-02-02 20:13:38.305] [Core] [info] [vulkan] Buffer freed
+[2023-02-02 20:13:38.305] [Core] [info] [vulkan] Buffer freed
+[2023-02-02 20:13:38.305] [Core] [info] [vulkan] Buffer freed
+[2023-02-02 20:13:38.305] [Core] [info] [vulkan] Buffer freed
+[2023-02-02 20:13:38.306] [Core] [info] [vulkan] Buffer freed
+[2023-02-02 20:13:38.306] [Core] [info] [vulkan] Buffer freed
+[2023-02-02 20:13:38.306] [Core] [info] [vulkan] Buffer freed
+[2023-02-02 20:13:38.306] [Core] [info] [vulkan] Buffer freed
+[2023-02-02 20:13:38.354] [Core] [info] device has been destroyed
+[2023-02-02 20:13:38.516] [Core] [info] Vulkan RHI has been shut down

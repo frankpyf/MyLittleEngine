@@ -28,6 +28,10 @@ namespace renderer {
 			rhi.RHIDestroySemaphore(frame_[index].image_acquired_semaphore);
 			rhi.RHIDestroySemaphore(frame_[index].render_finished_semaphore);
 
+			for (auto texture : frame_[index].texture_dump)
+			{
+				rhi.RHIFreeTexture(*texture);
+			}
 			frame_[index].texture_dump.clear();
 			frame_[index].render_target_dump.clear();
 		}
@@ -41,6 +45,10 @@ namespace renderer {
 		{
 			if (rhi.RHIIsFenceReady(frame.in_flight_fence))
 			{
+				for (auto texture : frame.texture_dump)
+				{
+					rhi.RHIFreeTexture(*texture);
+				}
 				frame.texture_dump.clear();
 				frame.render_target_dump.clear();
 			}

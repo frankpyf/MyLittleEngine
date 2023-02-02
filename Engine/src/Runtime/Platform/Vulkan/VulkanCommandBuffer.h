@@ -55,7 +55,7 @@ namespace rhi {
 		virtual void Begin() override { InternalBegin(); };
 		virtual void CopyBufferToBuffer(const CopyBufferToBufferDesc& desc)	override;
 		virtual void CopyBufferToImage(RHIBuffer* buffer,
-									   RHITexture2D* image,
+									   RHITexture* image,
 									   uint32_t              width,
 									   uint32_t              height,
 									   uint32_t              layer_count)	override;

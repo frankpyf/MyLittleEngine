@@ -72,11 +72,15 @@ namespace rhi {
 		return *this;
 	}
 
-	DescriptorSetLayout* DescriptorSetLayoutBuilder::Build()
+	DescriptorSetLayoutRef DescriptorSetLayoutBuilder::Build()
 	{
-		return cache_->CreateDescriptorLayout(&current_desc_);
+		return cache_->CreateDescriptorLayout(current_desc_);
 	}
 
+	DescriptorSetLayoutRef DescriptorSetLayoutBuilder::BuildFromDesc(const DescriptorLayoutDesc& in_desc)
+	{
+		return cache_->CreateDescriptorLayout(in_desc);
+	}
 	// -----------------------------------------------------------------------------
 
 	DescriptorWriter& DescriptorWriter::Begin(DescriptorAllocator* allocator)
@@ -88,6 +92,7 @@ namespace rhi {
 		case RHI::GfxAPI::Vulkan:
 			VulkanDescriptorAllocator* vk_allocator = static_cast<VulkanDescriptorAllocator*>(allocator);
 			static VulkanDescriptorWriter builder(vk_allocator);
+			builder.writes_.clear();
 			return builder;
 		}
 	};

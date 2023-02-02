@@ -33,6 +33,7 @@ namespace engine {
 		virtual void*	GetNativeWindow()	const	{ return glfw_window_; };
 
 		void SetEventCallback(const std::function<void(Event&)>& callback) { window_properties_.EventCallback = callback; };
+
 	private:
 		//data
 		GLFWwindow* glfw_window_;

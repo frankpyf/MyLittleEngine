@@ -1,12 +1,13 @@
 #pragma once
 #include "Enum.h"
+#include "RHIResource.h"
 
 namespace rhi {
-    struct RHIBuffer;
-    class RHITexture2D;
-
     struct DescriptorSet {};
+    using DescriptorSetPtr = std::unique_ptr<DescriptorSet>;
+
     struct DescriptorSetLayout {};
+    using DescriptorSetLayoutRef = std::shared_ptr<DescriptorSetLayout>;
 
     typedef struct DescriptorBinding {
         uint8_t         binding;
@@ -33,13 +34,15 @@ namespace rhi {
 
         virtual void Shutdown() {};
     };
+    using DescriptorAllocatorPtr = std::unique_ptr<DescriptorAllocator>;
 
     class DescriptorSetLayoutCache
     {
     public:
+        virtual ~DescriptorSetLayoutCache() = default;
         virtual void Shutdown() {};
 
-        virtual DescriptorSetLayout* CreateDescriptorLayout(DescriptorLayoutDesc* desc) = 0;
+        virtual DescriptorSetLayoutRef CreateDescriptorLayout(const DescriptorLayoutDesc& desc) = 0;
     private:
         struct DescriptorLayoutHash {
 
@@ -48,8 +51,9 @@ namespace rhi {
             }
         };
     protected:
-        std::unordered_map<DescriptorLayoutDesc, DescriptorSetLayout*, DescriptorLayoutHash> layout_cache_;
+        std::unordered_map<DescriptorLayoutDesc, DescriptorSetLayoutRef, DescriptorLayoutHash> layout_cache_;
     };
+    using DescriptorSetLayoutCachePtr = std::unique_ptr<DescriptorSetLayoutCache>;
 
     class DescriptorSetLayoutBuilder
     {
@@ -58,7 +62,8 @@ namespace rhi {
 
         DescriptorSetLayoutBuilder& AddBinding(uint32_t binding, DescriptorType type, ShaderStage stage_flags, uint8_t count = 1);
            
-        DescriptorSetLayout* Build();
+        DescriptorSetLayoutRef Build();
+        DescriptorSetLayoutRef BuildFromDesc(const DescriptorLayoutDesc& in_desc);
     private:
         DescriptorLayoutDesc current_desc_;
         DescriptorSetLayoutCache* cache_;
@@ -70,7 +75,7 @@ namespace rhi {
         static DescriptorWriter& Begin(DescriptorAllocator* allocator);
 
         virtual DescriptorWriter& WriteBuffer(uint32_t binding, rhi::RHIBuffer* buffer, DescriptorType type) = 0;
-        virtual DescriptorWriter& WriteImage(uint32_t binding, rhi::RHITexture2D* image, DescriptorType type) = 0;
+        virtual DescriptorWriter& WriteImage(uint32_t binding, rhi::RHITexture* image, DescriptorType type) = 0;
 
         virtual bool Build(DescriptorSet* set, DescriptorSetLayout* layout) = 0;
         virtual void OverWrite(DescriptorSet* set) = 0;

@@ -3,7 +3,6 @@
 #include "CommandBuffer.h"
 #include "RenderPass.h"
 #include "Descriptor.h"
-
 // Forward declaration
 struct ImDrawData;
 
@@ -59,24 +58,25 @@ namespace rhi{
 
         virtual void Present(Semaphore** semaphores, uint32_t semaphore_count) = 0;
 
-        virtual DescriptorSet* CreateDescriptorSet() = 0;
-        virtual DescriptorSetLayout* CreateDescriptorSetLayout() = 0;
-        virtual DescriptorSetLayoutCache* CreateDescriptorSetLayoutCache() = 0;
-        virtual DescriptorAllocator* CreateDescriptorAllocator() = 0;
+        [[nodiscard]] virtual DescriptorSetPtr RHICreateDescriptorSet() = 0;
+        [[nodiscard]] virtual DescriptorSetLayoutCachePtr CreateDescriptorSetLayoutCache() = 0;
+        [[nodiscard]] virtual DescriptorAllocatorPtr CreateDescriptorAllocator() = 0;
+
         virtual CommandBuffer* RHICreateCommandBuffer() = 0;
-        virtual std::shared_ptr<RHITexture2D> RHICreateTexture2D(const RHITexture2D::Descriptor& desc) = 0;
-        virtual std::shared_ptr<RHITexture2D> RHICreateTexture2D(std::string_view path, uint32_t miplevels = 1) = 0;
-        virtual RenderPass* RHICreateRenderPass(const RenderPass::Descriptor& desc) = 0;
+        virtual std::unique_ptr<RenderPass> RHICreateRenderPass(const RenderPass::Descriptor& desc) = 0;
         virtual std::unique_ptr<RenderTarget> RHICreateRenderTarget(const RenderTarget::Descriptor& desc) = 0;
         
-        virtual ShaderModule* RHICreateShaderModule(const char* path) = 0;
-        virtual void RHIFreeShaderModule(ShaderModule* shader) = 0;
-        virtual PipelineLayout* RHICreatePipelineLayout(const PipelineLayout::Descriptor& desc) = 0;
-        virtual void RHIFreePipelineLaoyout(PipelineLayout* layout) = 0;
-        virtual PipelineRef RHICreatePipeline(const RHIPipeline::Descriptor& desc) = 0;
-        virtual void RHIFreePipeline(RHIPipeline* pipeline) = 0;
-        virtual BufferRef RHICreateBuffer(const RHIBuffer::Descriptor& desc) = 0;
-        virtual void RHIFreeBuffer(BufferRef buffer) = 0;
+        [[nodiscard]] virtual ShaderModule* RHICreateShaderModule(const char* path) = 0;
+        virtual void RHIFreeShaderModule(ShaderModule& shader) = 0;
+        [[nodiscard]] virtual PipelineLayout* RHICreatePipelineLayout(const PipelineLayout::Descriptor& desc) = 0;
+        virtual void RHIFreePipelineLayout(PipelineLayout& layout) = 0;
+        [[nodiscard]] virtual PipelineRef RHICreatePipeline(const RHIPipeline::Descriptor& desc) = 0;
+        virtual void RHIFreePipeline(RHIPipeline& pipeline) = 0;
+        [[nodiscard]] virtual BufferRef RHICreateBuffer(const RHIBuffer::Descriptor& desc) = 0;
+        virtual void RHIFreeBuffer(RHIBuffer& buffer) = 0;
+        [[nodiscard]] virtual TextureRef RHICreateTexture(const RHITexture::Descriptor& desc) = 0;
+        virtual void ResizeTexture(RHITexture& texture, uint32_t width, uint32_t height) = 0;
+        virtual void RHIFreeTexture(RHITexture& texture) = 0;
 
         virtual Semaphore* RHICreateSemaphore() = 0;
         virtual Fence* RHICreateFence() = 0;

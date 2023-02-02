@@ -6,6 +6,7 @@
 #include "VirtualResource.h"
 
 namespace renderer{
+	class Renderer;
 	using ResourceHandle = size_t;
 
 	class RenderGraph
@@ -22,34 +23,35 @@ namespace renderer{
 			SubpassBuilder(SubpassBuilder const&) = delete;
 			SubpassBuilder& operator=(SubpassBuilder const&) = delete;
 
-			SubpassBuilder& Read(ResourceHandle resource);
+			SubpassBuilder& Read(uint32_t set, uint32_t binding, ResourceHandle resource);
 			SubpassBuilder& Write(ResourceHandle resource);
 			SubpassBuilder& SetPipeline(const rhi::RHIPipeline::Descriptor& desc);
 		private:
+			//subpass_graph
 			RenderGraph& rg_;
 			SubpassNode* const subpass_node_;
 		};
-		class Builder
+		class RenderPassBuilder
 		{
 			friend class RenderGraph;
 			using LoadOp = rhi::RenderPass::AttachmentDesc::LoadOp;
 			using StoreOp = rhi::RenderPass::AttachmentDesc::StoreOp;
 
 		public:
-			Builder(RenderGraph& rg, PassNode* node)
+			RenderPassBuilder(RenderGraph& rg, RenderPassNode* node)
 				:rg_(rg), node_(node) {};
-			Builder(Builder const&) = delete;
-			Builder& operator=(Builder const&) = delete;
+			RenderPassBuilder(RenderPassBuilder const&) = delete;
+			RenderPassBuilder& operator=(RenderPassBuilder const&) = delete;
 
-			Builder& Read(uint32_t set, uint32_t binding, ResourceHandle resource);
-			Builder& Read(ResourceHandle resource);
-			Builder& ReadWrite(uint32_t set, uint32_t binding, ResourceHandle resource, LoadOp load_operation, StoreOp store_operation);
-			Builder& Write(ResourceHandle resource, LoadOp load_operation, StoreOp store_operation);
+			RenderPassBuilder& Read(uint32_t set, uint32_t binding, ResourceHandle resource);
+			RenderPassBuilder& Read(ResourceHandle resource);
+			RenderPassBuilder& ReadWrite(uint32_t set, uint32_t binding, ResourceHandle resource, LoadOp load_operation, StoreOp store_operation);
+			RenderPassBuilder& Write(ResourceHandle resource, LoadOp load_operation, StoreOp store_operation);
 
-			Builder& SetPipeline(const rhi::RHIPipeline::Descriptor& desc);
+			RenderPassBuilder& SetPipeline(const rhi::RHIPipeline::Descriptor& desc);
 
 			template<typename Setup>
-			Builder& AddSubpass(const char* pass_name, Setup setup)
+			RenderPassBuilder& AddSubpass(const char* pass_name, Setup setup)
 			{
 				RenderPassNode* rp_node = static_cast<RenderPassNode*>(node_);
 				auto graph = rp_node->subpass_graph_;
@@ -60,11 +62,13 @@ namespace renderer{
 			};
 		private:
 			RenderGraph& rg_;
-			PassNode* node_;
+			RenderPassNode* node_;
 		};
 		// --------------------------------------------------
 
 		virtual ~RenderGraph() = default;
+
+		void SetRenderer(Renderer* in_renderer);
 
 		PassNode& GetRenderPass(const char* render_pass_name);
 
@@ -81,7 +85,7 @@ namespace renderer{
 		{
 			auto* const pass = RenderGraphPassBase::Create<Execute>(execute);
 
-			Builder builder(AddPassInternal(pass_name, pass));
+			RenderPassBuilder builder(AddRenderPassInternal(pass_name, pass));
 			setup(*this, builder);
 
 			is_compiled_ = false;
@@ -93,18 +97,18 @@ namespace renderer{
 
 			auto* const pass = RenderGraphPassBase::Create<Execute>(execute);
 
-			PassNode* node = new PresentPassNode(pass_name, *this, pass);
+			RenderPassNode* node = new PresentPassNode(pass_name, *this, pass);
 			pass->SetNode(node);
 			pass_nodes_.push_back(node);
 			node->DontCull();
 
-			Builder builder(*this, node);
+			RenderPassBuilder builder(*this, node);
 			setup(*this, builder);
 
 			is_compiled_ = false;
 		}
 
-		Builder AddPassInternal(const char* name, RenderGraphPassBase* base);
+		RenderPassBuilder AddRenderPassInternal(const char* name, RenderGraphPassBase* base);
 		SubpassBuilder AddSubPassInternal(const char* name, RenderPassNode* parent);
 
 		void RemoveRenderPass(const char* render_pass_name);
@@ -133,7 +137,8 @@ namespace renderer{
 			return resources_.size() - 1;
 		}
 
-		void Read(PassNode* pass_node, ResourceHandle handle);
+		void Read(RenderPassNode* pass_node, ResourceHandle handle);
+		void Read(uint32_t set, uint32_t binding, PassNode* pass_node, ResourceHandle handle);
 		void Write(PassNode* pass_node, ResourceHandle handle);
 		void SetPipelineInternal(PassNode* node, rhi::RHIPipeline::Descriptor desc);
 		void SetPipelineInternal(SubpassNode* pass_node, const rhi::RHIPipeline::Descriptor& desc);
@@ -157,6 +162,7 @@ namespace renderer{
 
 		inline DependencyGraph& GetGraph() { return graph_; };
 
+		Renderer* renderer_ = nullptr;
 	private:
 		std::vector<PassNode*> pass_nodes_{};
 		std::vector<PassNode*> render_pass_path_{};
