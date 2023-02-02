@@ -1,8 +1,8 @@
 #include "mlepch.h"
 #include "VulkanRHI.h"
 #include "VulkanRenderPass.h"
+#include "VulkanResource.h"
 #include "VulkanUtils.h"
-
 #include "Runtime/Core/Base/Application.h"
 
 #include "backends/imgui_impl_glfw.h"
@@ -41,12 +41,13 @@ namespace rhi {
 		std::vector<VkImageView> attachments{};
 		for (auto attachment : desc.attachments)
 		{
-			attachments.emplace_back(static_cast<VkImageView>(attachment->GetView()));
+			VulkanTexture* vk_texture = static_cast<VulkanTexture*>(attachment);
+			attachments.push_back(vk_texture->image_view);
 		}
 
 		if (desc.pass->is_for_present_)
 		{
-			attachments.emplace_back((VkImageView)rhi_.GetNativeSwapchainImageView());
+			attachments.push_back((VkImageView)rhi_.GetNativeSwapchainImageView());
 			width_ = rhi_.GetViewportWidth();
 			height_ = rhi_.GetViewportHeight();
 		}
@@ -55,7 +56,7 @@ namespace rhi {
 		framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		framebuffer_create_info.flags = 0U;
 		framebuffer_create_info.renderPass = (VkRenderPass)desc.pass->GetHandle();
-		framebuffer_create_info.attachmentCount = attachments.size();
+		framebuffer_create_info.attachmentCount = static_cast<uint32_t>(attachments.size());
 		framebuffer_create_info.pAttachments = attachments.data();
 		framebuffer_create_info.width = width_;
 		framebuffer_create_info.height = height_;
@@ -81,8 +82,11 @@ namespace rhi {
 
 	VulkanRenderPass::~VulkanRenderPass()
 	{
-		rhi_.RHIBlockUntilGPUIdle();
-
+		for (auto& pipeline : pipelines_)
+		{
+			VulkanPipeline* vk_pipeline = static_cast<VulkanPipeline*>(pipeline.get());
+			vkDestroyPipeline(rhi_.GetDevice()->GetDeviceHandle(), vk_pipeline->pipeline, nullptr);
+		}
 		vkDestroyRenderPass(rhi_.GetDevice()->GetDeviceHandle(), render_pass_, nullptr);
 	}
 
@@ -108,7 +112,7 @@ namespace rhi {
 
 			if (attachment.is_depth)
 			{
-				depth_reference.attachment = attachments.size();
+				depth_reference.attachment = static_cast<uint32_t>(attachments.size());
 				depth_reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 			}
 

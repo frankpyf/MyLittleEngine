@@ -2,6 +2,7 @@
 #include "Runtime/Function/RHI/RHI.h"
 #include "VulkanViewport.h"
 #include "VulkanDevice.h"
+#include "VulkanResource.h"
 #include "Runtime/Core/Base/Singleton.h"
 
 #include "vk_mem_alloc.h"
@@ -44,24 +45,25 @@ namespace rhi {
         
         virtual void Present(Semaphore** semaphores, uint32_t semaphore_count) override;
 
-        virtual DescriptorSet* CreateDescriptorSet() override;
-        virtual DescriptorSetLayout* CreateDescriptorSetLayout() override;
-        virtual DescriptorSetLayoutCache* CreateDescriptorSetLayoutCache() override;
-        virtual DescriptorAllocator* CreateDescriptorAllocator() override;
+        [[nodiscard]] virtual DescriptorSetPtr RHICreateDescriptorSet() override;
+        [[nodiscard]] virtual DescriptorSetLayoutCachePtr CreateDescriptorSetLayoutCache() override;
+        [[nodiscard]] virtual DescriptorAllocatorPtr CreateDescriptorAllocator() override;
+
         virtual CommandBuffer* RHICreateCommandBuffer() override;
-        virtual std::shared_ptr<RHITexture2D> RHICreateTexture2D(const RHITexture2D::Descriptor& desc) override;
-        virtual std::shared_ptr<RHITexture2D> RHICreateTexture2D(std::string_view path, uint32_t miplevels = 1) override;
-        virtual RenderPass*   RHICreateRenderPass(const RenderPass::Descriptor& desc) override;
+        virtual std::unique_ptr<RenderPass>   RHICreateRenderPass(const RenderPass::Descriptor& desc) override;
         virtual std::unique_ptr<RenderTarget> RHICreateRenderTarget(const RenderTarget::Descriptor& desc) override;
         
-        virtual ShaderModule* RHICreateShaderModule(const char* path) override;
-        virtual void RHIFreeShaderModule(ShaderModule* shader) override;
-        virtual PipelineLayout* RHICreatePipelineLayout(const PipelineLayout::Descriptor& desc) override;
-        virtual void RHIFreePipelineLaoyout(PipelineLayout* layout) override;
-        virtual PipelineRef RHICreatePipeline(const RHIPipeline::Descriptor& desc) override;
-        virtual void RHIFreePipeline(RHIPipeline* pipeline) override;
-        virtual BufferRef RHICreateBuffer(const RHIBuffer::Descriptor& desc) override;
-        virtual void RHIFreeBuffer(BufferRef buffer) override;
+        [[nodiscard]] virtual ShaderModule* RHICreateShaderModule(const char* path) override;
+        virtual void RHIFreeShaderModule(ShaderModule& shader) override;
+        [[nodiscard]] virtual PipelineLayout* RHICreatePipelineLayout(const PipelineLayout::Descriptor& desc) override;
+        virtual void RHIFreePipelineLayout(PipelineLayout& layout) override;
+        [[nodiscard]] virtual PipelineRef RHICreatePipeline(const RHIPipeline::Descriptor& desc) override;
+        virtual void RHIFreePipeline(RHIPipeline& pipeline) override;
+        [[nodiscard]] virtual BufferRef RHICreateBuffer(const RHIBuffer::Descriptor& desc) override;
+        virtual void RHIFreeBuffer(RHIBuffer& buffer) override;
+        [[nodiscard]] virtual TextureRef RHICreateTexture(const RHITexture::Descriptor& desc) override;
+        virtual void ResizeTexture(RHITexture& texture, uint32_t width, uint32_t height) override;
+        virtual void RHIFreeTexture(RHITexture& texture) override;
 
         virtual Semaphore* RHICreateSemaphore() override;
         virtual Fence* RHICreateFence() override;
@@ -89,6 +91,8 @@ namespace rhi {
         void SelectAndInitDevice();
 
         void CreateVulkanMemoryAllocator();
+
+        void AllocateTextureMemory(VulkanTexture* texture);
     protected:
         VkInstance instance_ = VK_NULL_HANDLE;
         std::vector<const char*> instance_extensions_;

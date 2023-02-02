@@ -7,12 +7,12 @@ namespace rhi {
 
 	struct VulkanDescriptorSetLayout : public DescriptorSetLayout
 	{
-		VkDescriptorSetLayout layout;
+		VkDescriptorSetLayout layout = VK_NULL_HANDLE;
 	};
 
 	struct VulkanDescriptorSet : public DescriptorSet
 	{
-		VkDescriptorSet descriptor_set;
+		VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
 	};
 
 	class VulkanDescriptorAllocator : public DescriptorAllocator
@@ -59,13 +59,14 @@ namespace rhi {
 			:device_(in_device) {};
 		virtual ~VulkanDescriptorSetLayoutCache();
 		virtual void Shutdown() override;
-		virtual DescriptorSetLayout* CreateDescriptorLayout(DescriptorLayoutDesc* desc) override;
+		virtual DescriptorSetLayoutRef CreateDescriptorLayout(const DescriptorLayoutDesc& desc) override;
 	private:
 		VulkanDevice* device_;
 	};
 
 	class VulkanDescriptorWriter : public DescriptorWriter
 	{
+		friend class DescriptorWriter;
 	public:
 		VulkanDescriptorWriter(VulkanDescriptorAllocator* allocator)
 			:alloc_(allocator)
@@ -75,7 +76,7 @@ namespace rhi {
 
 
 		virtual DescriptorWriter& WriteBuffer(uint32_t binding, rhi::RHIBuffer* buffer, DescriptorType type) override;
-		virtual DescriptorWriter& WriteImage(uint32_t binding, rhi::RHITexture2D* image, DescriptorType type) override { return *this; };
+		virtual DescriptorWriter& WriteImage(uint32_t binding, rhi::RHITexture* image, DescriptorType type) override;
 
 		virtual bool Build(DescriptorSet* set, DescriptorSetLayout* layout) override;
 		virtual void OverWrite(DescriptorSet* set) override;

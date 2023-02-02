@@ -1,16 +1,11 @@
 #pragma once
 #include "Descriptor.h"
+#include "RHIResource.h"
 struct ImDrawData;
 
 namespace rhi {
     class RenderTarget;
     class RenderPass;
-
-    struct RHIBuffer;
-    struct RHIPipeline;
-    struct PipelineLayout;
-
-    class RHITexture2D;
 
 
     struct CopyBufferToBufferDesc
@@ -70,8 +65,8 @@ namespace rhi {
         virtual ~RHITransferEncoder() = default;
         
         virtual void CopyBufferToBuffer(const CopyBufferToBufferDesc& desc)   {};
-        virtual void CopyBufferToImage(RHIBuffer*              buffer,
-                                       RHITexture2D*           image,
+        virtual void CopyBufferToImage(RHIBuffer*            buffer,
+                                       RHITexture*           image,
                                        uint32_t              width,
                                        uint32_t              height,
                                        uint32_t              layer_count)    {};

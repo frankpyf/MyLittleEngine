@@ -27,21 +27,21 @@ namespace utils {
 
 		return descriptorPool;
 	}
-	VkResult vkCreateDescriptorSetLayoutFromMLEDesc(VkDevice device, rhi::DescriptorLayoutDesc* desc, VkDescriptorSetLayout* layout)
+	VkResult vkCreateDescriptorSetLayoutFromMLEDesc(VkDevice device, const rhi::DescriptorLayoutDesc& desc, VkDescriptorSetLayout* layout)
 	{
 		VkDescriptorSetLayoutCreateInfo info{};
 		info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		info.bindingCount = desc->bindings.size();
+		info.bindingCount = static_cast<uint32_t>(desc.bindings.size());
 		std::vector<VkDescriptorSetLayoutBinding> bindings_vk;
-		bindings_vk.reserve(desc->bindings.size());
+		bindings_vk.reserve(desc.bindings.size());
 
-		for (int i = 0; i < desc->bindings.size(); ++i)
+		for (int i = 0; i < desc.bindings.size(); ++i)
 		{
 			VkDescriptorSetLayoutBinding binding{};
-			binding.binding = desc->bindings[i].binding;
-			binding.descriptorType = rhi::VulkanUtils::MLEFormatToVkFormat(desc->bindings[i].descriptor_type);
-			binding.descriptorCount = desc->bindings[i].descriptor_count;
-			binding.stageFlags = rhi::VulkanUtils::MLEFormatToVkFormat(desc->bindings[i].stage);
+			binding.binding = desc.bindings[i].binding;
+			binding.descriptorType = rhi::VulkanUtils::MLEFormatToVkFormat(desc.bindings[i].descriptor_type);
+			binding.descriptorCount = desc.bindings[i].descriptor_count;
+			binding.stageFlags = rhi::VulkanUtils::MLEFormatToVkFormat(desc.bindings[i].stage);
 
 			bindings_vk.push_back(binding);
 		}
@@ -174,30 +174,29 @@ namespace rhi {
 	void VulkanDescriptorSetLayoutCache::Shutdown()
 	{
 		for (auto pair : layout_cache_) {
-			VulkanDescriptorSetLayout* layout_vk = (VulkanDescriptorSetLayout*)pair.second;
+			VulkanDescriptorSetLayout* layout_vk = (VulkanDescriptorSetLayout*)pair.second.get();
 			vkDestroyDescriptorSetLayout(device_->GetDeviceHandle(), layout_vk->layout, nullptr);
-			delete pair.second;
 		}
 		layout_cache_.clear();
 	}
 
-	DescriptorSetLayout* VulkanDescriptorSetLayoutCache::CreateDescriptorLayout(DescriptorLayoutDesc* desc)
+	DescriptorSetLayoutRef VulkanDescriptorSetLayoutCache::CreateDescriptorLayout(const DescriptorLayoutDesc& desc)
 	{
 		DescriptorLayoutDesc layout_desc;
-		layout_desc.bindings.reserve(desc->bindings.size());
+		layout_desc.bindings.reserve(desc.bindings.size());
 
 		bool is_sorted = true;
 		int last_binding = -1;
 
 		//copy from the direct desc struct into our own one
-		for (int i = 0; i < desc->bindings.size(); i++)
+		for (int i = 0; i < desc.bindings.size(); i++)
 		{
-			layout_desc.bindings.push_back(desc->bindings[i]);
+			layout_desc.bindings.push_back(desc.bindings[i]);
 
 			//check that the bindings are in strict increasing order
-			if (desc->bindings[i].binding > last_binding)
+			if (desc.bindings[i].binding > last_binding)
 			{
-				last_binding = desc->bindings[i].binding;
+				last_binding = desc.bindings[i].binding;
 			}
 			else
 			{
@@ -224,7 +223,7 @@ namespace rhi {
 		else
 		{
 			//create a new one (not found)
-			VulkanDescriptorSetLayout* layout = new VulkanDescriptorSetLayout;
+			std::shared_ptr<VulkanDescriptorSetLayout> layout = std::make_shared<VulkanDescriptorSetLayout>();
 			utils::vkCreateDescriptorSetLayoutFromMLEDesc(device_->GetDeviceHandle(), desc, &layout->layout);
 
 			//add to cache
@@ -251,6 +250,23 @@ namespace rhi {
 		return *this;
 	}
 
+	DescriptorWriter& VulkanDescriptorWriter::WriteImage(uint32_t binding, rhi::RHITexture* image, DescriptorType type)
+	{
+		VulkanTexture* vk_image = static_cast<VulkanTexture*>(image);
+		//create the descriptor write
+		VkWriteDescriptorSet& newWrite = writes_.emplace_back();
+
+		newWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		newWrite.pNext = nullptr;
+		newWrite.descriptorCount = 1;
+		newWrite.descriptorType = VulkanUtils::MLEFormatToVkFormat(type);
+		newWrite.pImageInfo = &vk_image->texture_info;
+		newWrite.dstBinding = binding;
+
+		return *this;
+
+	}
+
 	bool VulkanDescriptorWriter::Build(DescriptorSet* set, DescriptorSetLayout* layout)
 	{
 		if (!alloc_->Allocate(set, layout))
@@ -270,6 +286,5 @@ namespace rhi {
 		}
 
 		vkUpdateDescriptorSets(alloc_->device_->GetDeviceHandle(), writes_.size(), writes_.data(), 0, nullptr);
-		writes_.clear();
 	}
 }

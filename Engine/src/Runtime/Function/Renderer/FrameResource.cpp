@@ -13,15 +13,6 @@ namespace renderer {
 			frame_[index].in_flight_fence = rhi.RHICreateFence();
 			frame_[index].image_acquired_semaphore = rhi.RHICreateSemaphore();
 			frame_[index].render_finished_semaphore = rhi.RHICreateSemaphore();
-
-			rhi::RHIBuffer::Descriptor buffer_desc{};
-			buffer_desc.size = sizeof(resource::UniformBufferObject);
-			buffer_desc.mapped_at_creation = true;
-			buffer_desc.memory_usage = MemoryUsage::MEMORY_USAGE_CPU_TO_GPU;
-			buffer_desc.usage = ResourceTypes::RESOURCE_TYPE_UNIFORM_BUFFER;
-			frame_[index].global_ubo = rhi.RHICreateBuffer(buffer_desc);
-
-			frame_[index].global_set = rhi.CreateDescriptorSet();
 		}
 	}
 
@@ -37,6 +28,10 @@ namespace renderer {
 			rhi.RHIDestroySemaphore(frame_[index].image_acquired_semaphore);
 			rhi.RHIDestroySemaphore(frame_[index].render_finished_semaphore);
 
+			for (auto texture : frame_[index].texture_dump)
+			{
+				rhi.RHIFreeTexture(*texture);
+			}
 			frame_[index].texture_dump.clear();
 			frame_[index].render_target_dump.clear();
 		}
@@ -50,6 +45,10 @@ namespace renderer {
 		{
 			if (rhi.RHIIsFenceReady(frame.in_flight_fence))
 			{
+				for (auto texture : frame.texture_dump)
+				{
+					rhi.RHIFreeTexture(*texture);
+				}
 				frame.texture_dump.clear();
 				frame.render_target_dump.clear();
 			}

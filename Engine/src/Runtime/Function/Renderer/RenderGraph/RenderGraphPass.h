@@ -6,12 +6,13 @@
 
 namespace renderer {
 	class PassNode;
+	class RenderGraph;
 
 	class RenderGraphPassBase
 	{
 	public:
 		RenderGraphPassBase() = default;
-		~RenderGraphPassBase() = default;
+		virtual ~RenderGraphPassBase() = default;
 		template<typename Execute>
 		static RenderGraphPassBase* Create(const Execute& exec)
 		{
@@ -29,13 +30,13 @@ namespace renderer {
 			actual_rp_ = rhi::RenderPass::Create(desc_);
 		}
 
-		virtual void Exec(rhi::RenderTarget& rt, FrameResource& frame) {};
+		virtual void Exec(RenderGraph& rg, rhi::RenderTarget& rt, FrameResource& frame) {};
 		void SetNode(PassNode* node) { node_ = node; };
 
 		using Descriptor = rhi::RenderPass::Descriptor;
 		Descriptor desc_;
 
-		rhi::RenderPass* actual_rp_ = nullptr;
+		std::unique_ptr<rhi::RenderPass> actual_rp_;
 	protected:
 		PassNode* node_ = nullptr;
 	};
@@ -49,13 +50,13 @@ namespace renderer {
 		{
 		};
 
-		virtual void Exec(rhi::RenderTarget& rt, FrameResource& frame) override
+		virtual void Exec(RenderGraph& rg, rhi::RenderTarget& rt, FrameResource& frame) override
 		{
 			assert(actual_rp_!=nullptr&&"render pass is a null");
 			
 			BeginRenderPass(*frame.command_buffer, *actual_rp_, rt);
 
-			exec_func_(*actual_rp_, rt, frame);
+			exec_func_(rg, *actual_rp_, rt, frame);
 
 			EndRenderPass(*frame.command_buffer);
 		}

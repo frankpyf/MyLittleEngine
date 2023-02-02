@@ -3,6 +3,7 @@
 #include "RenderGraph.h"
 #include "RenderGraphPass.h"
 #include "../FrameResource.h"
+#include "Runtime/Function/Renderer/Renderer.h"
 
 namespace renderer {
 	PassNode::PassNode(const char* name, RenderGraph& rg, bool is_subpass)
@@ -17,6 +18,13 @@ namespace renderer {
 			dependencies_.push_back(dependency->index_);
 		else
 			dependencies_.push_back(std::numeric_limits<uint32_t>::max());
+	}
+
+	std::unique_ptr<rhi::DescriptorSetPtr[]> PassNode::GetSets()
+	{
+		auto sets = std::make_unique<rhi::DescriptorSetPtr[]>(100);
+
+		return sets;
 	}
 	//----------------------------------------
 	RenderPassNode::RenderPassNode(const char* name, RenderGraph& rg, RenderGraphPassBase* base)
@@ -68,9 +76,9 @@ namespace renderer {
 
 		auto& attachment = rp_desc.attachments.emplace_back();
 
-		rhi::PixelFormat format = texture->resource_.desc_.format;
+		PixelFormat format = texture->resource_.desc_.format;
 
-		attachment.is_depth = format == rhi::PixelFormat::DEPTH;
+		attachment.is_depth = format == PixelFormat::DEPTH;
 		attachment.format = format;
 
 		attachment.load_op = load_operation;
@@ -85,8 +93,9 @@ namespace renderer {
 		declared_resources_.emplace(handle, index);
 	}
 
-	void RenderPassNode::RegisterResource(size_t handle, Usage usage)
+	void RenderPassNode::RegisterResource(ResourceNode* resource_node, Usage usage)
 	{
+		auto handle = resource_node->resource_index_;
 		VirtualResource* resource = rg_.GetResource(handle);
 		Resource<RenderGraphTexture>* texture = static_cast<Resource<RenderGraphTexture>*>(resource);
 		auto& texture_desc = texture->resource_.desc_;
@@ -95,20 +104,20 @@ namespace renderer {
 		switch (usage)
 		{
 		case DEFAULT_R_USAGE:
-			texture_desc.usage |= rhi::TextureUsage::SAMPLEABLE;
+			texture_desc.usage |= TextureUsage::SAMPLEABLE;
 			break;
 		case DEFAULT_W_USAGE:
 			size_t index = declared_resources_.at(handle);
 			auto& attachment = pass_base_->desc_.attachments[index];
 			attachment.initial_layout = texture->resource_.last_layout;
 
-			if (texture->resource_.desc_.format == rhi::PixelFormat::DEPTH)
+			if (texture->resource_.desc_.format == PixelFormat::DEPTH)
 			{
-				texture_desc.usage |= rhi::TextureUsage::DEPTH_ATTACHMENT;
+				texture_desc.usage |= TextureUsage::DEPTH_ATTACHMENT;
 			}
 			else
 			{
-				texture_desc.usage |= rhi::TextureUsage::COLOR_ATTACHMENT;
+				texture_desc.usage |= TextureUsage::COLOR_ATTACHMENT;
 			}
 			break;
 		}
@@ -120,18 +129,18 @@ namespace renderer {
 
 		for (auto& desc : pipelines_)
 		{
-			desc.render_pass = pass_base_->actual_rp_;
+			desc.render_pass = pass_base_->actual_rp_.get();
 			pass_base_->actual_rp_->CreatePipeline(desc);
 		}
 
-		render_target_.desc_.pass = pass_base_->actual_rp_;
+		render_target_.desc_.pass = pass_base_->actual_rp_.get();
 	}
 
 	void RenderPassNode::Execute(FrameResource& resource)
 	{
 		render_target_.Create();
 
-		pass_base_->Exec(*render_target_.render_target, resource);
+		pass_base_->Exec(rg_, *render_target_.render_target, resource);
 
 		render_target_.Destroy(resource);
 	}
@@ -159,21 +168,24 @@ namespace renderer {
 		parent_->pass_base_->desc_.subpasses.emplace_back(subpass_desc_);
 	}
 
-	void SubpassNode::RegisterResource(size_t handle, Usage usage)
+	void SubpassNode::RegisterResource(ResourceNode* resource_node, Usage usage)
 	{
+		auto handle = resource_node->resource_index_;
 		VirtualResource* resource = parent_->rg_.GetResource(handle);
 		Resource<RenderGraphTexture>* texture = static_cast<Resource<RenderGraphTexture>*>(resource);
-
-		size_t attachment = parent_->declared_resources_.at(handle);
 
 		switch (usage)
 		{
 		case DEFAULT_R_USAGE: 
 			texture->resource_.last_layout = rhi::ImageLayout::IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			subpass_desc_.input_attachments.push_back(attachment);
+			if (parent_->declared_resources_.find(handle) != parent_->declared_resources_.end())
+			{
+				size_t attachment = parent_->declared_resources_.at(handle);
+				subpass_desc_.input_attachments.push_back(attachment);
+			}
 			break;
 		case DEFAULT_W_USAGE:
-			if (texture->resource_.desc_.format == rhi::PixelFormat::DEPTH)
+			if (texture->resource_.desc_.format == PixelFormat::DEPTH)
 			{
 				texture->resource_.last_layout = rhi::ImageLayout::IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 				subpass_desc_.use_depth_stencil = true;
@@ -181,6 +193,7 @@ namespace renderer {
 			else
 			{
 				texture->resource_.last_layout = rhi::ImageLayout::IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+				size_t attachment = parent_->declared_resources_.at(handle);
 				subpass_desc_.color_attachments.push_back(attachment);
 			}
 			break;

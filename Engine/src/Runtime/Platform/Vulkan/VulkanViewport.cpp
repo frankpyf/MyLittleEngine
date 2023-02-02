@@ -52,6 +52,7 @@ namespace rhi {
 			glfwGetFramebufferSize(window, &width, &height);
 			glfwWaitEvents();
 		}
+		vkDeviceWaitIdle(device_->GetDeviceHandle());
 		VulkanSwapChainRecreateInfo recreate_info = {swap_chain_->GetSwapchainHandle(), surface_, width, height};
 		CreateSwapChain(&recreate_info);
 	}
@@ -72,7 +73,6 @@ namespace rhi {
 			}
 			old_swap_chain->Destroy();
 			delete old_swap_chain;
-			old_swap_chain = nullptr;
 		}
 	}
 
@@ -85,8 +85,9 @@ namespace rhi {
 	void VulkanViewport::Present(Semaphore** semaphores, uint32_t semaphore_count)
 	{
 		auto result = swap_chain_->Present(semaphores, semaphore_count, &acquired_image_index_);
-		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) 
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || resized_) 
 		{
+			resized_ = false;
 			RecreateSwapChain();
 		}
 		else if (result != VK_SUCCESS)

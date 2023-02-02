@@ -1,12 +1,15 @@
 #pragma once
 #include "entt/entt.hpp"
+#include "Runtime/Resource/Vertex.h"
 
 namespace engine {
 	class Entity;
 
+
 	class Scene
 	{
 		friend class Entity;
+		friend class EditorLayer;
 
 	public:
 		Scene() = default;
@@ -21,8 +24,13 @@ namespace engine {
 			return registry_.view<Components...>();
 		}
 
+		// TEMP: still not sure whether to keep this function or not
+		template<typename Func>
+		inline void ForEachEntity(Func func)
+		{
+			registry_.each(std::forward<Func>(func));
+		}
 	private:
 		entt::registry registry_;
-
 	};
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Runtime/Function/RHI/RHIResource.h"
+#include "Runtime/Function/Renderer/Camera.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -51,8 +52,24 @@ namespace engine {
 			: color(in_color) {}
 	};
 
+	struct CameraComponent
+	{
+
+	};
+
 	struct InputComponent
 	{
 
+	};
+
+	struct LightComponent
+	{
+		float light_intensity = 10.0;
+		glm::vec3 light_color{ 1.0, 1.0, 1.0 };
+
+		LightComponent() = default;
+		LightComponent(const LightComponent&) = default;
+		LightComponent(float intensity, glm::vec3 color)
+			:light_intensity(intensity), light_color(color) {}
 	};
 }

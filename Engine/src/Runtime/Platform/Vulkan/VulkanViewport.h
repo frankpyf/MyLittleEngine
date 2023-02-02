@@ -40,5 +40,7 @@ namespace rhi {
 		engine::Window* window_handle_;
 		VkSurfaceKHR surface_;
 		uint32_t acquired_image_index_;
+
+		bool resized_ = false;
 	};
 }

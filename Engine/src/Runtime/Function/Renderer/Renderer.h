@@ -45,13 +45,17 @@ namespace renderer {
 		{
 			return frames_manager_.GetCurrentFrame();
 		};
+
+		inline uint8_t GetFrameIndex()
+		{
+			return frames_manager_.GetFrameIndex();
+		}
+		rhi::DescriptorAllocator* desc_allocator_;
+		rhi::DescriptorSetLayout* global_layout_;
 	private:
 		RenderGraph render_graph_;
 		FrameResourceMngr frames_manager_;
 		bool is_frame_started_{ false };
-
-		rhi::DescriptorAllocator* desc_allocator_;
-		rhi::DescriptorSetLayout* global_layout_;
 	};
 }
 

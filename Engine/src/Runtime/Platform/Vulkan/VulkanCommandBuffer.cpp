@@ -112,9 +112,9 @@ namespace rhi {
 	{
 		VkViewport viewport{};
 		viewport.x = x;
-		viewport.y = y + height;
+		viewport.y = y;
 		viewport.width = width;
-		viewport.height = -height;
+		viewport.height = height;
 		viewport.minDepth = min_depth;
 		viewport.maxDepth = max_depth;
 		vkCmdSetViewport(command_buffer_, 0, 1, &viewport);
@@ -164,7 +164,7 @@ namespace rhi {
 	}
 
 	void VulkanTransferEncoder::CopyBufferToImage(RHIBuffer* buffer,
-												  RHITexture2D* image,
+												  RHITexture* image,
 												  uint32_t              width,
 												  uint32_t              height,
 												  uint32_t              layer_count)
@@ -172,7 +172,7 @@ namespace rhi {
 		assert(buffer != nullptr && "fatal:buffer is NULL");
 		assert(image != nullptr && "fatal:image is NULL");
 
-		VulkanTexture2D* image_vk = (VulkanTexture2D*)image;
+		VulkanTexture* image_vk = (VulkanTexture*)image;
 		VulkanBuffer* buffer_vk = (VulkanBuffer*)buffer;
 
 		VkBufferImageCopy region{};
@@ -186,7 +186,7 @@ namespace rhi {
 		region.imageOffset = { 0, 0, 0 };
 		region.imageExtent = { width, height, 1 };
 
-		vkCmdCopyBufferToImage(command_buffer_, buffer_vk->buffer, image_vk->image_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+		vkCmdCopyBufferToImage(command_buffer_, buffer_vk->buffer, image_vk->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 	}
 
 	//------------------------------------Cmd Buffer----------------------------------------

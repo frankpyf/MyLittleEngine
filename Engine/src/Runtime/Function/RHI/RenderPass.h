@@ -33,11 +33,11 @@ namespace rhi {
 	public:
 		struct Descriptor
 		{
-			std::vector<rhi::RHITexture2D*> attachments;
+			std::vector<rhi::RHITexture*> attachments;
 
 			uint32_t width;
 			uint32_t height;
-			glm::fvec4 clear_value = { 0.0f,0.0f,0.0f,1.0f };
+			glm::fvec4 clear_value = { 0.45f, 0.55f, 0.60f, 1.00f };
 
 			RenderPass* pass;
 		};
@@ -53,7 +53,7 @@ namespace rhi {
 
 		static std::unique_ptr<RenderTarget> Create(const RenderTarget::Descriptor& desc);
 	protected:
-		glm::fvec4 clear_value_ = { 0.0f,0.0f,0.0f,1.0f };
+		glm::fvec4 clear_value_;
 		uint32_t width_;
 		uint32_t height_;
 	};
@@ -94,7 +94,7 @@ namespace rhi {
 			LoadOp load_op = LoadOp::CLEAR;
 			StoreOp store_op = StoreOp::STORE;
 
-			PixelFormat format = rhi::PixelFormat::RGBA8;
+			PixelFormat format = PixelFormat::RGBA8;
 			
 			ImageLayout initial_layout = ImageLayout::IMAGE_LAYOUT_UNDEFINED;
 			ImageLayout final_layout = ImageLayout::IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -120,7 +120,7 @@ namespace rhi {
 		PipelineRef CreatePipeline(const RHIPipeline::Descriptor& desc);
 		PipelineRef GetPipeline(uint32_t index) { return pipelines_[index]; };
 
-		static RenderPass* Create(const Descriptor& desc);
+		static std::unique_ptr<RenderPass> Create(const Descriptor& desc);
 
 		bool is_for_present_ = false;
 	protected:

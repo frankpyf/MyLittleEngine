@@ -68,6 +68,8 @@ namespace engine {
 		/*EventBus& bus = EventBus::GetInstance();
 		bus.Close();*/
 
+		rhi::RHI::GetRHIInstance().RHIBlockUntilGPUIdle();
+
 		for (auto& layer : layer_stack_)
 			layer->OnDetach();
 

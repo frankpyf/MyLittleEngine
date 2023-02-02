@@ -6,7 +6,6 @@
 
 namespace rhi {
 	class RHI;
-	enum class PixelFormat : uint8_t;
 	class VulkanDevice;
 
 	class VulkanUtils
@@ -24,6 +23,7 @@ namespace rhi {
 		static void VMACreateImage(VmaAllocator& allocator,
 								   uint32_t              image_width,
 								   uint32_t              image_height,
+								   uint32_t				 image_depth,
 								   VkFormat              format,
 								   VkImageTiling         image_tiling,
 								   VkImageUsageFlags     image_usage_flags,
@@ -50,7 +50,7 @@ namespace rhi {
 										   uint32_t           layout_count,
 										   uint32_t           miplevels);
 		// todo: add params, this can only be a temp solution
-		static VkSampler CreateLinearSampler(const VkDevice& device,
+		static void CreateLinearSampler(const VkDevice& device,
 											 const VkPhysicalDevice& physical_device,
 											 VkSampler& sampler);
 		static void TransitionImageLayout(VulkanDevice* in_device,
@@ -77,14 +77,14 @@ namespace rhi {
 		static VkFormat FindDepthFormat(const VkPhysicalDevice& physical_device);
 		static uint32_t FindMemoryType(const VkPhysicalDevice& physical_device, uint32_t type_filter, VkMemoryPropertyFlags properties_flag);
 
-		static VkFormat MLEFormatToVkFormat(rhi::PixelFormat format);
+		static VkFormat MLEFormatToVkFormat(PixelFormat format);
 		static VkAttachmentLoadOp MLEFormatToVkFormat(rhi::RenderPass::AttachmentDesc::LoadOp in_op);
 
 		static VkAttachmentStoreOp MLEFormatToVkFormat(rhi::RenderPass::AttachmentDesc::StoreOp in_op);
 
-		static VkDescriptorType MLEFormatToVkFormat(DescriptorType& in_type);
+		static VkDescriptorType MLEFormatToVkFormat(const DescriptorType& in_type);
 
-		static VkShaderStageFlags MLEFormatToVkFormat(ShaderStage& in_stage);
+		static VkShaderStageFlags MLEFormatToVkFormat(const ShaderStage& in_stage);
 
 		static VkImageLayout ImageLayoutToVkImageLayout(rhi::ImageLayout in_layout);
 	};

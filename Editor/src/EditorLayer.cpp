@@ -5,25 +5,88 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
-namespace editor {
-	EditorLayer::EditorLayer()
-		:desc_allocator_(rhi::RHI::GetRHIInstance().CreateDescriptorAllocator()),
-		layout_cache_(rhi::RHI::GetRHIInstance().CreateDescriptorSetLayoutCache())
-	{
+// Wrapper functions for aligned memory allocation
+// There is currently no standard for this in C++ that works across all platforms and vendors, so we abstract this
+void* alignedAlloc(size_t size, size_t alignment)
+{
+	void* data = nullptr;
+#if defined(_MSC_VER) || defined(__MINGW32__)
+	data = _aligned_malloc(size, alignment);
+#else
+	int res = posix_memalign(&data, alignment, size);
+	if (res != 0)
+		data = nullptr;
+#endif
+	return data;
+}
 
-	}
+namespace editor {
 	void EditorLayer::OnAttach()
 	{
+		//////////////////////////////////////
+		// Member Init
+		////////////////////////////////////// 
+		{
+			desc_allocator_ = rhi::RHI::GetRHIInstance().CreateDescriptorAllocator();
+			layout_cache_ = rhi::RHI::GetRHIInstance().CreateDescriptorSetLayoutCache();
+
+			global_set_layout_ =
+				rhi::DescriptorSetLayoutBuilder::Begin(layout_cache_.get())
+				.AddBinding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT_BIT, 1)
+				.AddBinding(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_FRAGMENT_BIT, 1)
+				.Build();
+
+			texture_set_layout_ =
+				rhi::DescriptorSetLayoutBuilder::Begin(layout_cache_.get())
+				.AddBinding(0, DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, SHADER_STAGE_FRAGMENT_BIT, 1)
+				.Build();
+
+			for (auto i = 0; i < renderer::FrameResourceMngr::MAX_FRAMES_IN_FLIGHT; ++i)
+			{
+				rhi::RHIBuffer::Descriptor camera_ubo_desc{};
+				camera_ubo_desc.element_stride = sizeof(CameraUbo);
+				camera_ubo_desc.memory_usage = MemoryUsage::MEMORY_USAGE_CPU_TO_GPU;
+				camera_ubo_desc.usage = ResourceTypes::RESOURCE_TYPE_UNIFORM_BUFFER;
+				camera_ubo_desc.mapped_at_creation = true;
+				camera_ubo_[i] = rhi::RHI::GetRHIInstance().RHICreateBuffer(camera_ubo_desc);
+
+				rhi::RHIBuffer::Descriptor param_ubo_desc{};
+				param_ubo_desc.element_stride = sizeof(AtmosphereParameter);
+				param_ubo_desc.memory_usage = MemoryUsage::MEMORY_USAGE_CPU_TO_GPU;
+				param_ubo_desc.usage = ResourceTypes::RESOURCE_TYPE_UNIFORM_BUFFER;
+				param_ubo_desc.mapped_at_creation = true;
+				param_ubo_[i] = rhi::RHI::GetRHIInstance().RHICreateBuffer(camera_ubo_desc);
+
+				global_set_[i] = rhi::RHI::GetRHIInstance().RHICreateDescriptorSet();
+
+				texture_set_[i] = rhi::RHI::GetRHIInstance().RHICreateDescriptorSet();;
+
+				// Update Descriptor Set Only Once(We dont need to change it at runtime
+				rhi::DescriptorWriter::Begin(desc_allocator_.get())
+					.WriteBuffer(0, camera_ubo_[i].get(), DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+					.WriteBuffer(1, param_ubo_[i].get(), DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+					.Build(global_set_[i].get(), global_set_layout_.get());
+
+				desc_allocator_->Allocate(texture_set_[i].get(), texture_set_layout_.get());
+			}
+		}
 		//////////////////////////////////////
 		// Scene
 		//////////////////////////////////////
 		{
 			editor_scene_ = std::make_shared<engine::Scene>();
 			square_entity_ = editor_scene_->CreateEntity("square");
-			square_entity_.AddComponent<engine::TransformComponent>();
 			square_entity_.AddComponent<engine::SpriteRendererComponent>();
+
+			light_entity_ = editor_scene_->CreateEntity("light");
+			light_entity_.AddComponent<engine::LightComponent>();
+
+			scene_panel_.SetScene(editor_scene_);
 		}
 
+		//////////////////////////////////////
+		// Renderer
+		//////////////////////////////////////
 		{
 			using namespace renderer;
 
@@ -39,106 +102,137 @@ namespace editor {
 			{{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
 			{{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}}
 			};
+			vb_ = renderer.LoadModel(vertices);
+			const std::vector<uint16_t> indices = { 0, 1, 2, 2, 3, 0 };
+			indicies_ = renderer.LoadIndex(indices);
 
-			// desc_allocator_ = rhi.CreateDescriptorAllocator();
-			//layout_cache_ = rhi.CreateDescriptorSetLayoutCache();
+			std::unique_ptr<rhi::ShaderModule> post_process_vert(rhi.RHICreateShaderModule("asset/shaders/PostProcess.spv"));
+			std::unique_ptr<rhi::ShaderModule> atmosphere_frag(rhi.RHICreateShaderModule("asset/shaders/Atmosphere.spv"));
+			std::unique_ptr<rhi::ShaderModule> combine_frag(rhi.RHICreateShaderModule("asset/shaders/Combine.spv"));
 
-			global_set_layout_ = 
-				rhi::DescriptorSetLayoutBuilder::Begin(layout_cache_.get())
-				.AddBinding(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, SHADER_STAGE_VERTEX_BIT, 1)
-				.Build();
-
-			vert_shader_ = rhi.RHICreateShaderModule("asset/shaders/vert.spv");
-			frag_shader_ = rhi.RHICreateShaderModule("asset/shaders/frag.spv");
-
-			rhi::DescriptorSetLayout* descriptor_sets_layout[1] = { global_set_layout_ };
+			rhi::DescriptorSetLayout* descriptor_sets_layout[] = { global_set_layout_.get()};
 
 			rhi::PipelineLayout::Descriptor pipeline_layout_desc{};
 			pipeline_layout_desc.set_layout_count = 1;
 			pipeline_layout_desc.layouts = descriptor_sets_layout;
-			pipeline_layout_ = rhi.RHICreatePipelineLayout(pipeline_layout_desc);
+			atmosphere_pipeline_layout_ = rhi.RHICreatePipelineLayout(pipeline_layout_desc);
 
-			rhi::RHIPipeline::Descriptor tri_pipeline{};
-			tri_pipeline.vert_shader = vert_shader_;
-			tri_pipeline.frag_shader = frag_shader_;
-			tri_pipeline.layout = pipeline_layout_;
+			rhi::RHIPipeline::Descriptor sky_pipeline{};
+			sky_pipeline.vert_shader = post_process_vert.get();
+			sky_pipeline.frag_shader = atmosphere_frag.get();
+			sky_pipeline.layout = atmosphere_pipeline_layout_;
+			sky_pipeline.use_vertex_attribute = false;
 
-			vb_ = renderer.LoadModel(vertices);
-			const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
-			indicies_ = renderer.LoadIndex(indices);
+			rhi::DescriptorSetLayout* texture_descriptor_sets_layout[] = { texture_set_layout_.get() };
+
+			rhi::PipelineLayout::Descriptor combine_pipeline_layout_desc{};
+			combine_pipeline_layout_desc.set_layout_count = 1;
+			combine_pipeline_layout_desc.layouts = texture_descriptor_sets_layout;
+			combine_pipeline_layout_ = rhi.RHICreatePipelineLayout(combine_pipeline_layout_desc);
+
+			rhi::RHIPipeline::Descriptor combine_pipeline{};
+			combine_pipeline.vert_shader = post_process_vert.get();
+			combine_pipeline.frag_shader = combine_frag.get();
+			combine_pipeline.layout = combine_pipeline_layout_;
+			combine_pipeline.use_vertex_attribute = false;
 
 			renderer.LoadAllocator(desc_allocator_.get());
-			renderer.LoadLayout(global_set_layout_);
-
+			renderer.LoadLayout(global_set_layout_.get());
 
 			//--------------------------------------------------------------------------
 			
 			// Delcare Resource
-			back_buffer_ = rhi.RHICreateTexture2D({ 800, 800, 1, rhi::PixelFormat::RGBA8, rhi::TextureUsage::COLOR_ATTACHMENT | rhi::TextureUsage::SAMPLEABLE});
+			back_buffer_ = rhi.RHICreateTexture({ 800, 800, 1, 1, 1, PixelFormat::RGBA8, TextureUsage::COLOR_ATTACHMENT | TextureUsage::SAMPLEABLE});
 
 			ResourceHandle color_buffer_handle = render_graph.ImportResource<RenderGraphTexture>("back_buffer", 
-				{ 800, 800, 1, rhi::PixelFormat::RGBA8, rhi::TextureUsage::COLOR_ATTACHMENT | rhi::TextureUsage::SAMPLEABLE },
+				{ back_buffer_->width, back_buffer_->height, 1, 1, 1,  PixelFormat::RGBA8, TextureUsage::COLOR_ATTACHMENT | TextureUsage::SAMPLEABLE},
 				{ back_buffer_ });
+			ResourceHandle sky_texture_handle = render_graph.AddResource<RenderGraphTexture>("sky_texture",
+				{ (back_buffer_->width) / 2, (back_buffer_->height) / 2, 1, 1, 1,  PixelFormat::RGBA8, TextureUsage::COLOR_ATTACHMENT | TextureUsage::SAMPLEABLE });
 
-			ResourceHandle depth_buffer_handle = render_graph.AddResource<RenderGraphTexture>("depth_buffer", { 800, 800, 1, rhi::PixelFormat::DEPTH });
-
-			 // Triangle Pass
+			// Sky Pass
 			{
-				render_graph.AddPass("Triangle Pass",
-					[&](RenderGraph& rg, RenderGraph::Builder& builder)
+				render_graph.AddPass("Sky Pass",
+					[&](RenderGraph& rg, RenderGraph::RenderPassBuilder& builder)
 					{
-						builder.Write(color_buffer_handle, rhi::RenderPass::AttachmentDesc::LoadOp::CLEAR, rhi::RenderPass::AttachmentDesc::StoreOp::STORE)
-							.AddSubpass("Triangle subpass",
-							[&](RenderGraph& rg, RenderGraph::SubpassBuilder& builder)
-							{
-								builder.Write(color_buffer_handle);
-							})
-							.SetPipeline(tri_pipeline);
-
+						builder.Write(sky_texture_handle, rhi::RenderPass::AttachmentDesc::LoadOp::CLEAR, rhi::RenderPass::AttachmentDesc::StoreOp::STORE)
+							.AddSubpass("Atmosphere subpass",
+								[&](RenderGraph& rg, RenderGraph::SubpassBuilder& builder)
+								{
+									builder.Write(sky_texture_handle)
+										.SetPipeline(sky_pipeline);
+								});
 					},
-					[=](rhi::RenderPass& rp, rhi::RenderTarget& rt, FrameResource& current_frame)
+					[=](RenderGraph& rg, rhi::RenderPass& rp, rhi::RenderTarget& rt, FrameResource& current_frame)
 					{
+						// Update Buffer
+						CameraUbo camera_data{};
+						camera_data.position = editor_camera_.GetPosition();
+						camera_data.inverse_view = editor_camera_.GetInverseView();
+						camera_data.inverse_proj = editor_camera_.GetInverseProjection();
+						camera_ubo_[frame_index_]->SetData(&camera_data, sizeof(camera_data));
+
+						param_.sun_light_color = light_entity_.GetComponent<engine::LightComponent>().light_color;
+						param_.sun_light_intensity = light_entity_.GetComponent<engine::LightComponent>().light_intensity;
+
+						glm::mat4 quat_rotation = glm::toMat4(glm::quat(light_entity_.GetComponent<engine::TransformComponent>().rotation));
+
+						param_.sun_light_direction = quat_rotation * glm::vec4(0, 1, 1, 1);
+
+						param_ubo_[frame_index_]->SetData(&param_, sizeof(param_));
+						// ----------------------------
 						BindGfxPipeline(*current_frame.command_buffer, rp.GetPipeline(0).get());
-						SetViewport(*current_frame.command_buffer, 0, 0, back_buffer_->GetWidth(), back_buffer_->GetHeight());
-						SetScissor(*current_frame.command_buffer, 0, 0, back_buffer_->GetWidth(), back_buffer_->GetHeight());
-						{
-							resource::UniformBufferObject ubo{};
-							
-							ubo.view = editor_camera_.GetView();
-							ubo.proj = editor_camera_.GetProjection();
+						SetViewport(*current_frame.command_buffer, 0, 0, (back_buffer_->width) / 2, (back_buffer_->height) / 2);
+						SetScissor(*current_frame.command_buffer, 0, 0, (back_buffer_->width) / 2, (back_buffer_->height) / 2);
 
-							auto view = editor_scene_->GetAllEntitiesWith<engine::TransformComponent, engine::SpriteRendererComponent>();
-							
-							for (auto entity : view)
-							{
-								auto [transform, sprite] = view.get<engine::TransformComponent, engine::SpriteRendererComponent>(entity);
+						rhi::DescriptorSet* sets[] = { global_set_[frame_index_].get()};
+						BindDescriptorSets(*current_frame.command_buffer, rp.GetPipeline(0)->layout, 0, 1, sets, 0, nullptr);
+						Draw(*current_frame.command_buffer, 3, 1, 0, 0);
+					});
+			}
 
-								ubo.model = transform.GetTransform();
-								current_frame.global_ubo->SetData(&ubo, sizeof(ubo));
+			// Another Post Process Pass
+			{
+				render_graph.AddPass("Combine Pass",
+					[&](RenderGraph& rg, RenderGraph::RenderPassBuilder& builder)
+					{
+						builder.Read(sky_texture_handle)
+							.Write(color_buffer_handle, rhi::RenderPass::AttachmentDesc::LoadOp::DONT_CARE, rhi::RenderPass::AttachmentDesc::StoreOp::STORE)
+							.AddSubpass("Combine subpass",
+								[&](RenderGraph& rg, RenderGraph::SubpassBuilder& builder)
+								{
+									builder.Read(0, 0, sky_texture_handle)
+										.Write(color_buffer_handle)
+										.SetPipeline(combine_pipeline);
+								});
+					},
+					[=](RenderGraph& rg, rhi::RenderPass& rp, rhi::RenderTarget& rt, FrameResource& current_frame)
+					{
+						auto sky_texture = rg.GetResource(sky_texture_handle);
+						auto sky_texture_resource = static_cast<Resource<RenderGraphTexture>*>(sky_texture);
 
-								rhi::RHIBuffer* vbs[] = { vb_.get() };
-								uint64_t offsets[] = { 0 };
-								BindVertexBuffers(*current_frame.command_buffer, 0, 1, vbs, offsets);
-								BindIndexBuffer(*current_frame.command_buffer, indicies_.get(), 0);
+						rhi::DescriptorWriter::Begin(desc_allocator_.get())
+							.WriteImage(0, sky_texture_resource->resource_.texture.get(), DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+							.OverWrite(texture_set_[frame_index_].get());
+						// ----------------------------
+						BindGfxPipeline(*current_frame.command_buffer, rp.GetPipeline(0).get());
+						SetViewport(*current_frame.command_buffer, 0, 0, back_buffer_->width, back_buffer_->height);
+						SetScissor(*current_frame.command_buffer, 0, 0, back_buffer_->width, back_buffer_->height);
 
-								rhi::DescriptorSet* sets[1] = { current_frame.global_set };
-
-								BindDescriptorSets(*current_frame.command_buffer, rp.GetPipeline(0)->layout, 0, 1, sets, 0, nullptr);
-
-								DrawIndexed(*current_frame.command_buffer, 6, 1, 0, 0, 0);
-							}
-						}
+						rhi::DescriptorSet* sets[] = { texture_set_[frame_index_].get()};
+						BindDescriptorSets(*current_frame.command_buffer, rp.GetPipeline(0)->layout, 0, 1, sets, 0, nullptr);
+						Draw(*current_frame.command_buffer, 3, 1, 0, 0);
 					});
 			}
 		
 			// Present Pass
 			{
 				render_graph.AddPresentPass("Present & UI Pass",
-					[&](RenderGraph& rg, RenderGraph::Builder& builder)
+					[&](RenderGraph& rg, RenderGraph::RenderPassBuilder& builder)
 					{
 						builder.Read(color_buffer_handle);
 					},
-					[=](rhi::RenderPass& rp, rhi::RenderTarget& rt, FrameResource& current_frame)
+					[=](RenderGraph& rg, rhi::RenderPass& rp, rhi::RenderTarget& rt, FrameResource& current_frame)
 					{
 						// Rendering
 						ImGui::Render();
@@ -156,23 +250,19 @@ namespace editor {
 						}
 					});
 			}
+
 			
 			render_graph.Compile();
+
+			rhi.RHIFreeShaderModule(*post_process_vert);
+			rhi.RHIFreeShaderModule(*atmosphere_frag);
+			rhi.RHIFreeShaderModule(*combine_frag);
 		}
 	}
 
 	void EditorLayer::OnDetach() 
 	{
 		rhi::RHI& rhi = rhi::RHI::GetRHIInstance();
-
-		// Temp
-		rhi.RHIFreePipelineLaoyout(pipeline_layout_);
-		delete pipeline_layout_;
-		rhi.RHIFreeShaderModule(vert_shader_);
-		rhi.RHIFreeShaderModule(frag_shader_);
-		delete vert_shader_;
-		delete frag_shader_;
-
 		// ---------------------------------
 		using namespace renderer;
 		Renderer& renderer = Renderer::GetInstance();
@@ -181,22 +271,43 @@ namespace editor {
 
 		render_graph.Clear();
 
+		// ---------------------------------
+		// Temp
+		rhi.RHIFreePipelineLayout(*atmosphere_pipeline_layout_);
+		delete atmosphere_pipeline_layout_;
+
+		rhi.RHIFreePipelineLayout(*combine_pipeline_layout_);
+		delete combine_pipeline_layout_;
+
+		for (auto i = 0; i < renderer::FrameResourceMngr::MAX_FRAMES_IN_FLIGHT; ++i)
+		{
+			rhi.RHIFreeBuffer(*param_ubo_[i]);
+			rhi.RHIFreeBuffer(*camera_ubo_[i]);
+		}
+		rhi.RHIFreeBuffer(*vb_);
+		rhi.RHIFreeBuffer(*indicies_);
+
+		rhi.RHIFreeTexture(*back_buffer_);
 	}
 
 	void EditorLayer::OnUpdate(float delta_time)
 	{
 		using namespace renderer;
 		Renderer& renderer = Renderer::GetInstance();
+		frame_index_ = renderer.GetFrameIndex();
 		auto& current_frame = renderer.GetCurrentFrame();
 		// Resize
 		if ( viewport_size_.x > 0.0f && viewport_size_.y > 0.0f && // zero sized framebuffer is invalid
-			(back_buffer_->GetWidth() != viewport_size_.x || back_buffer_->GetHeight() != viewport_size_.y))
+			(back_buffer_->width != viewport_size_.x || back_buffer_->height != viewport_size_.y))
 		{
-			back_buffer_->Resize((uint32_t)viewport_size_.x, (uint32_t)viewport_size_.y);
+			rhi::RHI::GetRHIInstance().ResizeTexture(*back_buffer_, (uint32_t)viewport_size_.x, (uint32_t)viewport_size_.y);
 
 			RenderGraph& render_graph = renderer.GetRenderGraph();
-			auto& pass = render_graph.GetRenderPass("Triangle Pass");
-			render_graph.ResizeRenderTarget(&pass, viewport_size_.x, viewport_size_.y);
+			auto& pass = render_graph.GetRenderPass("Sky Pass");
+			render_graph.ResizeRenderTarget(&pass, viewport_size_.x / 2, viewport_size_.y / 2);
+
+			auto& combine_pass = render_graph.GetRenderPass("Combine Pass");
+			render_graph.ResizeRenderTarget(&combine_pass, viewport_size_.x, viewport_size_.y);
 
 			editor_camera_.OnResize(viewport_size_.x, viewport_size_.y);
 		}
@@ -278,19 +389,29 @@ namespace editor {
 		}
 		ImGui::End();
 
-		ImGui::Begin("Panel 1");
-		ImGui::Button("Button");
-		ImGui::Separator();
-		// ---------------
-		ImGui::DragFloat3("Translation", glm::value_ptr(square_entity_.GetComponent<engine::TransformComponent>().translation));
-		ImGui::DragFloat3("Rotation", glm::value_ptr(square_entity_.GetComponent<engine::TransformComponent>().rotation));
-		ImGui::DragFloat3("Scale", glm::value_ptr(square_entity_.GetComponent<engine::TransformComponent>().scale));
-		// ---------------
-		ImGui::End();
+		{
+			ImGui::Begin("Panel 2");
 
-		ImGui::Begin("Panel 2");
+			ImGui::End();
+		}
 		
-		ImGui::End();
+		{
+			ImGui::Begin("Atmosphere Properties");
+			ImGui::DragFloat("Sea Level: ", &param_.sea_level);
+			ImGui::DragFloat3("Planet Center: ", glm::value_ptr(param_.planet_center));
+			ImGui::DragFloat("Planet Radius: ", &param_.planet_radius, 1000.0f, 0.0f);
+			ImGui::DragFloat("Atmosphere height: ", &param_.atmosphere_height);
+			ImGui::DragFloat("Sun Disk Angle: ", &param_.sun_disk_angle, 0.1f);
+			ImGui::DragFloat("Rayleigh Scattering scale: ", &param_.rayleigh_scattering_scale);
+			ImGui::DragFloat("Rayleigh Scattering scalar height: ", &param_.rayleigh_scattering_scalar_height);
+			ImGui::DragFloat("Mie Scattering Scale: ", &param_.mie_scattering_scale);
+			ImGui::DragFloat("Mie Anisotropy: ", &param_.mie_anisotropy, 0.01f, 0.0f, 1.0f);
+			ImGui::DragFloat("Mie Scattering Scalr Height: ", &param_.mie_scattering_scalar_height);
+			ImGui::DragFloat("Ozone Level Center Height: ", &param_.ozone_level_center_height, 1.0f);
+			ImGui::DragFloat("Ozone Level Width: ", &param_.ozone_level_width, 1.0f);
+			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+			ImGui::End();
+		}
 		
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0, 0 });
 		ImGui::Begin("Viewport");
@@ -298,9 +419,13 @@ namespace editor {
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 		viewport_size_ = { viewportPanelSize.x, viewportPanelSize.y };
 
-		ImGui::Image((ImTextureID)back_buffer_->GetTextureID(), ImVec2{ (float)back_buffer_->GetWidth(), (float)back_buffer_->GetHeight()}, ImVec2{0, 1}, ImVec2{1, 0});
+
+		back_buffer_->RegisterForImGui();
+		ImGui::Image((ImTextureID)back_buffer_->texture_id, ImVec2{ (float)back_buffer_->width, (float)back_buffer_->height}, ImVec2{0, 1}, ImVec2{1, 0});
 
 		ImGui::End();
 		ImGui::PopStyleVar();
+
+		scene_panel_.OnUIRender();
 	}
 }

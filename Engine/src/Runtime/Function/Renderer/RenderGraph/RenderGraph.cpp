@@ -2,11 +2,12 @@
 #include "RenderGraph.h"
 #include "VirtualResource.h"
 #include "../Renderer.h"
+#include "Runtime/Function/RHI/Enum.h"
 
 namespace renderer {
-	RenderGraph::SubpassBuilder& RenderGraph::SubpassBuilder::Read(ResourceHandle resource)
+	RenderGraph::SubpassBuilder& RenderGraph::SubpassBuilder::Read(uint32_t set, uint32_t binding, ResourceHandle resource)
 	{
-		rg_.Read(subpass_node_, resource);
+		rg_.Read(set, binding, subpass_node_, resource);
 
 		return *this;
 	}
@@ -18,22 +19,23 @@ namespace renderer {
 	}
 	RenderGraph::SubpassBuilder& RenderGraph::SubpassBuilder::SetPipeline(const rhi::RHIPipeline::Descriptor& desc)
 	{
+		subpass_node_->parent_->rg_.SetPipelineInternal(subpass_node_, desc);
 		return *this;
 	}
 	// --------------------------------------------------------------
-	RenderGraph::Builder& RenderGraph::Builder::Read(uint32_t set, uint32_t binding, ResourceHandle resource)
+	RenderGraph::RenderPassBuilder& RenderGraph::RenderPassBuilder::Read(uint32_t set, uint32_t binding, ResourceHandle resource)
+	{
+		rg_.Read(set, binding, node_, resource);
+
+		return *this;
+	}
+	RenderGraph::RenderPassBuilder& RenderGraph::RenderPassBuilder::Read(ResourceHandle resource)
 	{
 		rg_.Read(node_, resource);
 
 		return *this;
 	}
-	RenderGraph::Builder& RenderGraph::Builder::Read(ResourceHandle resource)
-	{
-		rg_.Read(node_, resource);
-
-		return *this;
-	}
-	RenderGraph::Builder& RenderGraph::Builder::ReadWrite(uint32_t set, uint32_t binding, ResourceHandle resource, LoadOp load_operation, StoreOp store_operation)
+	RenderGraph::RenderPassBuilder& RenderGraph::RenderPassBuilder::ReadWrite(uint32_t set, uint32_t binding, ResourceHandle resource, LoadOp load_operation, StoreOp store_operation)
 	{
 		rg_.Read(node_, resource);
 
@@ -44,7 +46,7 @@ namespace renderer {
 
 		return *this;
 	}
-	RenderGraph::Builder& RenderGraph::Builder::Write(ResourceHandle resource, LoadOp load_operation, StoreOp store_operation)
+	RenderGraph::RenderPassBuilder& RenderGraph::RenderPassBuilder::Write(ResourceHandle resource, LoadOp load_operation, StoreOp store_operation)
 	{
 		rg_.Write(node_, resource);
 
@@ -54,16 +56,21 @@ namespace renderer {
 		return *this;
 	}
 
-	RenderGraph::Builder& RenderGraph::Builder::SetPipeline(rhi::RHIPipeline::Descriptor desc)
+	RenderGraph::RenderPassBuilder& RenderGraph::RenderPassBuilder::SetPipeline(const rhi::RHIPipeline::Descriptor& desc)
 	{
-		rg_.SetPipeline(node_, desc);
+		rg_.SetPipelineInternal(node_, desc);
 		return *this;
 	}
 
 	//-----------------------------------------------------------------
-	RenderGraph::Builder RenderGraph::AddPassInternal(const char* name, RenderGraphPassBase* base)
+	void RenderGraph::SetRenderer(Renderer* in_renderer)
 	{
-		PassNode* node = new RenderPassNode(name, *this, base);
+		renderer_ = in_renderer;
+	}
+
+	RenderGraph::RenderPassBuilder RenderGraph::AddRenderPassInternal(const char* name, RenderGraphPassBase* base)
+	{
+		RenderPassNode* node = new RenderPassNode(name, *this, base);
 		base->SetNode(node);
 		pass_nodes_.push_back(node);
 
@@ -72,7 +79,7 @@ namespace renderer {
 
 	RenderGraph::SubpassBuilder RenderGraph::AddSubPassInternal(const char* name, RenderPassNode* parent)
 	{
-		PassNode* node = new SubpassNode(name, *this, parent, pass_nodes_.size());
+		SubpassNode* node = new SubpassNode(name, *parent->subpass_graph_, parent, static_cast<uint32_t>(pass_nodes_.size()));
 		pass_nodes_.push_back(node);
 		node->DontCull();
 
@@ -103,15 +110,15 @@ namespace renderer {
 	void RenderGraph::Clear()
 	{
 		graph_.Clear();
-		for (auto& rp : pass_nodes_)
+		for (auto rp : pass_nodes_)
 		{
 			delete rp;
 		}
-		for (auto& resource_node : resource_nodes_)
+		for (auto resource_node : resource_nodes_)
 		{
 			delete resource_node;
 		}
-		for (auto& resource : resources_)
+		for (auto resource : resources_)
 		{
 			delete resource;
 		}
@@ -141,7 +148,7 @@ namespace renderer {
 			for (auto const& edge : reads)
 			{
 				auto resource_node = static_cast<ResourceNode*>(graph_.GetNode(edge->from));
-				pass->RegisterResource(resource_node->resource_index_, DEFAULT_R_USAGE);
+				pass->RegisterResource(resource_node, DEFAULT_R_USAGE);
 				pass->SetDependencies(resource_node->GetWriterPass());
 			}
 
@@ -149,7 +156,7 @@ namespace renderer {
 			for (auto const& edge : writes)
 			{
 				auto resource_node = static_cast<ResourceNode*>(graph_.GetNode(edge->to));
-				pass->RegisterResource(resource_node->resource_index_, DEFAULT_W_USAGE);
+				pass->RegisterResource(resource_node, DEFAULT_W_USAGE);
 			}
 
 			pass->Resolve();
@@ -165,10 +172,10 @@ namespace renderer {
 					first->devirtualize_.insert(resource);
 					last->destroy_.insert(resource);
 				}
-				if (resource->ref_count_)
+				if (resource->ref_count_ == 1)
 				{
 					Resource<RenderGraphTexture>* texture = static_cast<Resource<RenderGraphTexture>*>(resource);
-					texture->resource_.desc_.usage |= rhi::TextureUsage::TRANSIENT_ATTACHMENT;
+					texture->resource_.desc_.usage |= TextureUsage::TRANSIENT_ATTACHMENT;
 				}
 			}
 			});
@@ -211,7 +218,8 @@ namespace renderer {
 		}
 	}
 
-	void RenderGraph::Read(PassNode* node, ResourceHandle handle)
+	// Since the function doesn't specify set and binding, it must has subpass
+	void RenderGraph::Read(RenderPassNode* pass_node, ResourceHandle handle)
 	{
 		for (auto it = resource_nodes_.rbegin(); it != resource_nodes_.rend(); ++it)
 		{
@@ -219,14 +227,31 @@ namespace renderer {
 			{
 				ResourceNode* resource_node = (*it);
 
-				if (!node->is_subpass_)
-				{
-					RenderPassNode* rp_node = static_cast<RenderPassNode*>(node);
-					ResourceNode* resource_node = new ResourceNode(*rp_node->subpass_graph_, handle);
-					rp_node->subpass_graph_->resource_nodes_.push_back(resource_node);
-				}
+				// create a identical resource node from the render pass graph for its subpass
+				pass_node->subpass_graph_->resource_nodes_.push_back(new ResourceNode(*pass_node->subpass_graph_, handle));
 
-				DependencyGraph::Edge* edge = new DependencyGraph::Edge(graph_, (DependencyGraph::Node*)resource_node, (DependencyGraph::Node*)node);
+				DependencyGraph::Edge* edge = new DependencyGraph::Edge(graph_, (DependencyGraph::Node*)resource_node, (DependencyGraph::Node*)pass_node);
+				resource_node->SetOutgoingEdge(edge);
+
+				/*VirtualResource* const resource = resources_[handle];
+				resource->Connect(graph_, resource_node, node);*/
+				break;
+			}
+		}
+	}
+
+	void RenderGraph::Read(uint32_t set, uint32_t binding, PassNode* pass_node, ResourceHandle handle)
+	{
+		for (auto it = resource_nodes_.rbegin(); it != resource_nodes_.rend(); ++it)
+		{
+			if ((*it)->resource_index_ == handle)
+			{
+				ResourceNode* resource_node = (*it);
+
+				resource_node->set_ = set;
+				resource_node->binding_ = binding;
+
+				DependencyGraph::Edge* edge = new DependencyGraph::Edge(graph_, (DependencyGraph::Node*)resource_node, (DependencyGraph::Node*)pass_node);
 				resource_node->SetOutgoingEdge(edge);
 
 				/*VirtualResource* const resource = resources_[handle];
@@ -250,10 +275,15 @@ namespace renderer {
 		resource->Connect(graph_, node, resource_node);*/
 	}
 
-	void RenderGraph::SetPipeline(PassNode* node, rhi::RHIPipeline::Descriptor desc)
+	void RenderGraph::SetPipelineInternal(PassNode* node, rhi::RHIPipeline::Descriptor desc)
 	{
 		RenderPassNode* pass_node = static_cast<RenderPassNode*>(node);
-		desc.render_pass = pass_node->pass_base_->actual_rp_;
 		pass_node->pipelines_.push_back(desc);
+	}
+
+	void RenderGraph::SetPipelineInternal(SubpassNode* pass_node, const rhi::RHIPipeline::Descriptor& desc)
+	{
+		auto pipeline_desc = pass_node->parent_->pipelines_.emplace_back(desc);
+		pipeline_desc.subpass = pass_node->subpass_index_;
 	}
 }

@@ -11,9 +11,9 @@
 #include "Runtime/Core/Base/Log.h"
 #include "Runtime/Core/Base/Application.h"
 #include "Runtime/Core/Window.h"
-
 #include "Runtime/Resource/Vertex.h"
 
+#include "imgui.h"
 #include "backends/imgui_impl_vulkan.h"
 #include "backends/imgui_impl_glfw.h"
 
@@ -386,23 +386,18 @@ namespace rhi {
 		viewport_->Present(semaphores, semaphore_count);
 	}
 
-	DescriptorSet* VulkanRHI::CreateDescriptorSet()
+	DescriptorSetPtr VulkanRHI::RHICreateDescriptorSet()
 	{
-		return new VulkanDescriptorSet;
+		return std::make_unique<VulkanDescriptorSet>();
 	}
 
-	DescriptorSetLayout* VulkanRHI::CreateDescriptorSetLayout()
+	DescriptorSetLayoutCachePtr VulkanRHI::CreateDescriptorSetLayoutCache()
 	{
-		return new VulkanDescriptorSetLayout;
+		return std::make_unique<VulkanDescriptorSetLayoutCache>(device_);
 	}
-
-	DescriptorSetLayoutCache* VulkanRHI::CreateDescriptorSetLayoutCache()
+	DescriptorAllocatorPtr VulkanRHI::CreateDescriptorAllocator()
 	{
-		return new VulkanDescriptorSetLayoutCache(device_);
-	}
-	DescriptorAllocator* VulkanRHI::CreateDescriptorAllocator()
-	{
-		return new VulkanDescriptorAllocator(device_);
+		return std::make_unique<VulkanDescriptorAllocator>(device_);
 	}
 
 	CommandBuffer* VulkanRHI::RHICreateCommandBuffer()
@@ -410,19 +405,9 @@ namespace rhi {
 		return new VulkanCommandBuffer(device_);
 	}
 
-	std::shared_ptr<RHITexture2D> VulkanRHI::RHICreateTexture2D(const RHITexture2D::Descriptor& desc)
+	std::unique_ptr<RenderPass> VulkanRHI::RHICreateRenderPass(const RenderPass::Descriptor& desc)
 	{
-		return std::make_shared<VulkanTexture2D>(*this, desc);
-	}
-
-	std::shared_ptr<RHITexture2D> VulkanRHI::RHICreateTexture2D(std::string_view path, uint32_t miplevels)
-	{
-		return std::make_shared<VulkanTexture2D>(*this, path, miplevels);
-	}
-
-	RenderPass* VulkanRHI::RHICreateRenderPass(const RenderPass::Descriptor& desc)
-	{
-		return new VulkanRenderPass(*this, desc);
+		return std::make_unique<VulkanRenderPass>(*this, desc);
 	}
 
 	std::unique_ptr<RenderTarget> VulkanRHI::RHICreateRenderTarget(const RenderTarget::Descriptor& desc)
@@ -501,19 +486,27 @@ namespace rhi {
 	// ---------------------------------Resource Creation and deconstruction-----------------------------------
 	BufferRef VulkanRHI::RHICreateBuffer(const RHIBuffer::Descriptor& desc)
 	{
-		// TODO: Add Support for Dynamic Buffer
 		auto buffer = std::make_shared<VulkanBuffer>();
-		buffer->size = desc.size;
-		buffer->usage = desc.usage;
 
+		// -------------Configure buffer size-------------
+		// Calculate required alignment based on minimum device offset alignment
+		size_t min_ubo_alignment = device_->GetDeviceProperties().limits.minUniformBufferOffsetAlignment;
+		buffer->alignment = desc.element_stride;
+		if (min_ubo_alignment > 0 && desc.element_count > 1)
+		{
+			buffer->alignment = (buffer->alignment + min_ubo_alignment - 1) & ~(min_ubo_alignment - 1);
+		}
+		buffer->size = desc.element_count * buffer->alignment;
+		
 		// -------------Resolve Buffer usage-------------
+		buffer->usage = desc.usage;
 		VkBufferUsageFlags usage = utils::ResolveBufferUsage(desc.usage);
 
 		// if this buffer needs staging buffer to upload data or it needs to read data from the gpu 
 		if (desc.memory_usage == MemoryUsage::MEMORY_USAGE_GPU_ONLY)
 			usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-		// -------------Resolve VMA Create Info, annnnnnd fix some usage stuff-------------
+		// -------------Resolve VMA Create Info, and fix some usage stuff-------------
 		VmaAllocationCreateInfo vma_create_info{};
 		// This is the way
 		vma_create_info.usage =
@@ -534,7 +527,7 @@ namespace rhi {
 			vma_create_info.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
 		VulkanUtils::VMACreateBuffer(allocator_,
-			desc.size,
+			buffer->size,
 			usage,
 			buffer->buffer,
 			buffer->buffer_allocation,
@@ -547,16 +540,126 @@ namespace rhi {
 		buffer->buffer_info.range = buffer->size;
 
 #ifdef MLE_DEBUG
-		MLE_CORE_INFO("[vulkan] Vertex Buffer created");
+		MLE_CORE_INFO("[vulkan] Buffer created");
 #endif // MLE_DEBUG
 		return buffer;
 	}
 
-	void VulkanRHI::RHIFreeBuffer(BufferRef buffer)
+	void VulkanRHI::RHIFreeBuffer(RHIBuffer& buffer)
 	{
-		VulkanBuffer* vk_buffer = static_cast<VulkanBuffer*>(buffer.get());
+		VulkanBuffer* vk_buffer = static_cast<VulkanBuffer*>(&buffer);
 		if (vk_buffer->buffer != VK_NULL_HANDLE)
 			vmaDestroyBuffer(allocator_, vk_buffer->buffer, vk_buffer->buffer_allocation);
+		MLE_CORE_INFO("[vulkan] Buffer freed");
+	}
+
+	void VulkanRHI::AllocateTextureMemory(VulkanTexture* texture)
+	{
+		VkImageUsageFlags vk_usage{};
+		if (EnumHasFlag(texture->usage, TextureUsage::TRANSIENT_ATTACHMENT))
+		{
+			vk_usage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+		}
+		if (EnumHasFlag(texture->usage, TextureUsage::COLOR_ATTACHMENT))
+		{
+			vk_usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		}
+		if (EnumHasFlag(texture->usage, TextureUsage::DEPTH_ATTACHMENT))
+		{
+			vk_usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		}
+		if (EnumHasFlag(texture->usage, TextureUsage::STENCIL_ATTACHMENT))
+		{
+			vk_usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		}
+		if (EnumHasFlag(texture->usage, TextureUsage::UPLOADABLE))
+		{
+			vk_usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;;
+		}
+		if (EnumHasFlag(texture->usage, TextureUsage::SAMPLEABLE))
+		{
+			vk_usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+		}
+
+		VkFormat vk_format = texture->format == PixelFormat::DEPTH ? GetDepthFormat() : VulkanUtils::MLEFormatToVkFormat(texture->format);
+
+
+		VulkanUtils::VMACreateImage(allocator_, texture->width, texture->height, texture->depth,
+			vk_format,
+			VK_IMAGE_TILING_OPTIMAL,
+			vk_usage,
+			texture->image,
+			texture->layers_count,
+			texture->miplevels,
+			texture->image_allocation);
+
+		// Create Image View
+		VkImageViewCreateInfo image_view_create_info{};
+		image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		image_view_create_info.image = texture->image;
+		image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		image_view_create_info.format = vk_format;
+		image_view_create_info.subresourceRange.aspectMask = texture->format == PixelFormat::DEPTH ? VK_IMAGE_ASPECT_DEPTH_BIT
+			: VK_IMAGE_ASPECT_COLOR_BIT;
+		image_view_create_info.subresourceRange.baseMipLevel = 0;
+		image_view_create_info.subresourceRange.levelCount = texture->miplevels;
+		image_view_create_info.subresourceRange.baseArrayLayer = 0;
+		image_view_create_info.subresourceRange.layerCount = 1;
+
+		if (vkCreateImageView(device_->GetDeviceHandle(), &image_view_create_info, nullptr, &texture->image_view) != VK_SUCCESS)
+		{
+			throw std::runtime_error("failed to create image view!");
+		}
+
+		VulkanUtils::CreateLinearSampler(device_->GetDeviceHandle(), device_->GetPhysicalHandle(), texture->sampler);
+
+		texture->texture_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		texture->texture_info.imageView = texture->image_view;
+		texture->texture_info.sampler = texture->sampler;
+
+		texture->texture_id = nullptr;
+	}
+
+	TextureRef VulkanRHI::RHICreateTexture(const RHITexture::Descriptor& desc)
+	{
+		auto texture = std::make_shared<VulkanTexture>();
+		texture->width = desc.width;
+		texture->height = desc.height;
+		texture->depth = desc.depth;
+		texture->miplevels = desc.miplevels;
+		texture->format = desc.format;
+		texture->usage = desc.usage;
+		texture->layers_count = desc.array_layers;
+		
+		AllocateTextureMemory(texture.get());
+
+		return texture;
+	}
+
+	void VulkanRHI::ResizeTexture(RHITexture& texture, uint32_t width, uint32_t height)
+	{
+		if (texture.width == width && texture.height == height)
+			return;
+		texture.width = width;
+		texture.height = height;
+
+		RHIFreeTexture(texture);
+		VulkanTexture* vk_texture = static_cast<VulkanTexture*>(&texture);
+		AllocateTextureMemory(vk_texture);
+	}
+
+	void VulkanRHI::RHIFreeTexture(RHITexture& texture)
+	{
+		RHIBlockUntilGPUIdle();
+		VulkanTexture* vk_texture = static_cast<VulkanTexture*>(&texture);
+		if (vk_texture->image)
+		{
+
+			vkDestroySampler(device_->GetDeviceHandle(), vk_texture->sampler, nullptr);
+			vkDestroyImageView(device_->GetDeviceHandle(), vk_texture->image_view, nullptr);
+			vmaDestroyImage(allocator_, vk_texture->image, vk_texture->image_allocation);
+			vk_texture->image = VK_NULL_HANDLE;
+		}
 	}
 
 	ShaderModule* VulkanRHI::RHICreateShaderModule(const char* path)
@@ -579,9 +682,9 @@ namespace rhi {
 		return vk_shader;
 	}
 
-	void VulkanRHI::RHIFreeShaderModule(ShaderModule* shader)
+	void VulkanRHI::RHIFreeShaderModule(ShaderModule& shader)
 	{
-		VulkanShaderModule* vk_shader = (VulkanShaderModule*)shader;
+		VulkanShaderModule* vk_shader = (VulkanShaderModule*)&shader;
 		vkDestroyShaderModule(device_->GetDeviceHandle(), vk_shader->shader_module, nullptr);
 	}
 
@@ -607,9 +710,9 @@ namespace rhi {
 		return pipeline_layout;
 	}
 
-	void VulkanRHI::RHIFreePipelineLaoyout(PipelineLayout* layout)
+	void VulkanRHI::RHIFreePipelineLayout(PipelineLayout& layout)
 	{
-		VulkanPipelineLayout* pipeline_layout = (VulkanPipelineLayout*)layout;
+		VulkanPipelineLayout* pipeline_layout = (VulkanPipelineLayout*)&layout;
 		vkDestroyPipelineLayout(device_->GetDeviceHandle(), pipeline_layout->pipeline_layout, nullptr);
 	}
 
@@ -667,13 +770,14 @@ namespace rhi {
 		color.offset = offsetof(resource::Vertex, color);
 
 		VkVertexInputAttributeDescription vertex_attribute_desc[] = { position, color };
+		
 
 		VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-		vertexInputInfo.vertexAttributeDescriptionCount = 2;
-		vertexInputInfo.vertexBindingDescriptionCount = 1;
-		vertexInputInfo.pVertexAttributeDescriptions = vertex_attribute_desc;
-		vertexInputInfo.pVertexBindingDescriptions = &binding_description;
+		vertexInputInfo.vertexAttributeDescriptionCount = desc.use_vertex_attribute ? 2 : 0;
+		vertexInputInfo.vertexBindingDescriptionCount = desc.use_vertex_attribute ? 1 : 0;
+		vertexInputInfo.pVertexAttributeDescriptions = desc.use_vertex_attribute ? vertex_attribute_desc : nullptr;
+		vertexInputInfo.pVertexBindingDescriptions = desc.use_vertex_attribute ? &binding_description : nullptr;
 
 		VkPipelineInputAssemblyStateCreateInfo input_assembly_state{};
 		input_assembly_state.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -694,7 +798,7 @@ namespace rhi {
 		rasterization_state.polygonMode = VK_POLYGON_MODE_FILL;
 		rasterization_state.lineWidth = 1.0f;
 		rasterization_state.cullMode = VK_CULL_MODE_BACK_BIT;
-		rasterization_state.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		rasterization_state.frontFace = VK_FRONT_FACE_CLOCKWISE;
 		rasterization_state.depthBiasEnable = VK_FALSE;
 		rasterization_state.depthBiasConstantFactor = 0.0f;  // Optional
 		rasterization_state.depthBiasClamp = 0.0f;           // Optional
@@ -786,9 +890,9 @@ namespace rhi {
 		return new_pipeline;
 	}
 
-	void VulkanRHI::RHIFreePipeline(RHIPipeline* pipeline)
+	void VulkanRHI::RHIFreePipeline(RHIPipeline& pipeline)
 	{
-		VulkanPipeline* vk_pipeline = (VulkanPipeline*)pipeline;
+		VulkanPipeline* vk_pipeline = (VulkanPipeline*)&pipeline;
 
 		vkDestroyPipeline(device_->GetDeviceHandle(), vk_pipeline->pipeline, nullptr);
 	}

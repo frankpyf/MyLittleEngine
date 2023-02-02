@@ -11,7 +11,7 @@ namespace rhi {
 		pipelines_.clear();
 	}
 
-	RenderPass* RenderPass::Create(const Descriptor& desc)
+	std::unique_ptr<RenderPass> RenderPass::Create(const Descriptor& desc)
 	{
 		RHI& rhi = RHI::GetRHIInstance();
 		return rhi.RHICreateRenderPass(desc);
