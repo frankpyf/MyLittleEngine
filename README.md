@@ -124,7 +124,7 @@ ResourceHandle sky_texture_handle = render_graph.AddResource<RenderGraphTexture>
 render_graph.Compile();
 ```
 This is what it looks like(btw why imgui is kinda gray, still trying to figure it out): 
-![Just a test](/Docs/Pictures/PBR_Atmosphere.PNG)
+![Pure Physics & Math, No optimization](/Docs/Pictures/PBR_Atmosphere.png)
 
 # Referencing
 [Walnut(The Cherno)](https://github.com/TheCherno/Walnut)  
